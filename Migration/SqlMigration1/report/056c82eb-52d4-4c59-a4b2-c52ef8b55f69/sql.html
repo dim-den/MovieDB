@@ -1,0 +1,118 @@
+<html>
+<head>
+<meta http-equiv='Content-Type' content='text/html; charset=UTF-8'>
+<meta http-equiv='X-UA-Compatible' content='IE=edge' />
+<link rel=stylesheet data-name='vs/editor/editor.main' href='../monaco/editor.main.css' type='text/css'>
+<link rel='stylesheet' type='text/css' href='../css/style.css'></link>
+<script type='text/javascript' src='../js/functions.js'></script>
+<script async='async' type='text/javascript' src='../monaco/sql.js'></script>
+<script src='../monaco/loader.js'></script>
+<script src='../monaco/editor.main.nls.js'></script>
+<script src='../monaco/editor.main.js'></script>
+</head>
+<body class='sql-body' id='scrollable-body'>
+<div id='left-side' class='left-side'><div class='panel'>
+<span class='panel-title source'>&nbsp;Source</span>
+<img tabindex='0' aria-label='Previous problem' role='button' class='nav-button nav-button-disabled' id='source_previous_problem' src='../img/previous_problem.gif' onclick='handleProblemButtonClick(-1, true)' title='Previous problem' />
+<img tabindex='0' aria-label='Next problem' role='button' class='nav-button nav-button-disabled' id='source_next_problem' src='../img/next_problem.gif' onclick='handleProblemButtonClick(1, true)' title='Next problem' />
+<img tabindex='0' aria-label='Previous bookmark' role='button' class='nav-button nav-button-disabled' id='source_previous_bookmark' src='../img/previous_bookmark.gif' onclick='handleBookmarkButtonClick(-1, true)' title='Previous bookmark' />
+<img tabindex='0' aria-label='Next bookmark' role='button' class='nav-button nav-button-disabled' id='source_next_bookmark' src='../img/next_bookmark.gif' onclick='handleBookmarkButtonClick(1, true)' title='Next bookmark' />
+<img tabindex='0' aria-label='Clear bookmarks' role='button' class='nav-button nav-button-disabled' id='source_clear_bookmarks' src='../img/clear_bookmarks.gif' onclick='handleBookmarkButtonClick(0, true)' title='Clear bookmarks' />
+<a class='raw-source-link' target='_blank' aria-label='Raw source' href='./src.sql.txt');'>Raw source</a>
+</div>
+<div class='editor-container'>
+<div id='monaco-left-side'></div><pre id='monaco-left-side-sql'>
+CREATE 
+	MATERIALIZED VIEW MD_REGEX_MVIEW 
+		REFRESH FORCE ON DEMAND 
+		AS 
+			SELECT 
+				pr.PROJECT_NAME, 
+				pr.ID "PROJECT_ID", 
+				c.ID "CONNECTION_ID", 
+				c.NAME "CONNECTION_NAME", 
+				mc.ID "CATALOG_ID", 
+				mc.CATALOG_NAME, 
+				s.id "SCHEMA_ID", 
+				s.NAME "SCHEMA_NAME", 
+				p.ID "PROGRAM_ID", 
+				p.name "PROGRAM_NAME", 
+				rg.DESCRIPTION "ITEM", 
+				regexp_count(p.native_sql, rg.REGEX, 1, 'ix') "VALUE"
+			FROM 
+				MD_STORED_PROGRAMS  p, 
+				md_projects  pr, 
+				md_connections  c, 
+				md_schemas  s, 
+				MD_CATALOGS  mc, 
+				MD_CODE_REGEX  rg
+			WHERE 
+				c.TYPE IS NULL/*Shows captured*/ AND 
+				mc.CONNECTION_ID_FK = c.id AND 
+				mc.id = s.CATALOG_ID_FK AND 
+				pr.PROJECT_NAME LIKE 'SS%' AND 
+				pr.id = c.PROJECT_ID_FK AND 
+				p.SCHEMA_ID_FK = s.ID AND 
+				regexp_count(p.native_sql, rg.REGEX, 1, 'ix') > 0;
+</pre></div></div><div id='resize-bar' class='resize-bar'></div><div id='right-side' class='right-side'><div class='panel'>
+<span class='panel-title target'>&nbsp;Target</span>
+<img tabindex='0' aria-label='Previous problem' role='button' class='nav-button nav-button-disabled' id='target_previous_problem' src='../img/previous_problem.gif' onclick='handleProblemButtonClick(-1, false)' title='Previous problem' />
+<img tabindex='0' aria-label='Next problem' role='button' class='nav-button nav-button-disabled' id='target_next_problem' src='../img/next_problem.gif' onclick='handleProblemButtonClick(1, false)' title='Next problem' />
+<img tabindex='0' aria-label='Previous bookmark' role='button' class='nav-button nav-button-disabled' id='target_previous_bookmark' src='../img/previous_bookmark.gif' onclick='handleBookmarkButtonClick(-1, false)' title='Previous bookmark' />
+<img tabindex='0' aria-label='Next bookmark' role='button' class='nav-button nav-button-disabled' id='target_next_bookmark' src='../img/next_bookmark.gif' onclick='handleBookmarkButtonClick(1, false)' title='Next bookmark' />
+<img tabindex='0' aria-label='Clear bookmarks' role='button' class='nav-button nav-button-disabled' id='target_clear_bookmarks' src='../img/clear_bookmarks.gif' onclick='handleBookmarkButtonClick(0, false)' title='Clear bookmarks' />
+</div>
+<div class='editor-container'>
+<div id='monaco-right-side'></div><pre id='monaco-right-side-sql'>
+/* 
+*   SSMA error messages:
+*   O2SS0050: Conversion of identifier 'regexp_count(CLOB, VARCHAR2, BINARY_INTEGER, CHAR)' is not supported.
+*   O2SS0050: Conversion of identifier 'regexp_count(CLOB, VARCHAR2, BINARY_INTEGER, CHAR)' is not supported.
+
+/* 
+*   SSMA error messages:
+*   O2SS0522: Materialized view with float type can't be converted (restriction)
+
+CREATE VIEW MOVIE_USER.MD_REGEX_MVIEW
+WITH SCHEMABINDING 
+AS 
+	SELECT 
+		PR.PROJECT_NAME, 
+		PR.ID AS PROJECT_ID, 
+		C.ID AS CONNECTION_ID, 
+		C.NAME AS CONNECTION_NAME, 
+		MC.ID AS CATALOG_ID, 
+		MC.CATALOG_NAME, 
+		S.ID AS SCHEMA_ID, 
+		S.NAME AS SCHEMA_NAME, 
+		P.ID AS PROGRAM_ID, 
+		P.NAME AS PROGRAM_NAME, 
+		RG.DESCRIPTION AS ITEM, 
+		REGEXP_COUNT(P.NATIVE_SQL, RG.REGEX, 1, 'ix') AS VALUE
+	FROM 
+		MOVIE_USER.MD_STORED_PROGRAMS  AS P, 
+		MOVIE_USER.MD_PROJECTS  AS PR, 
+		MOVIE_USER.MD_CONNECTIONS  AS C, 
+		MOVIE_USER.MD_SCHEMAS  AS S, 
+		MOVIE_USER.MD_CATALOGS  AS MC, 
+		MOVIE_USER.MD_CODE_REGEX  AS RG
+	WHERE 
+		C.TYPE IS NULL/*Shows captured*/ AND 
+		MC.CONNECTION_ID_FK = C.ID AND 
+		MC.ID = S.CATALOG_ID_FK AND 
+		PR.PROJECT_NAME LIKE 'SS%' AND 
+		PR.ID = C.PROJECT_ID_FK AND 
+		P.SCHEMA_ID_FK = S.ID AND 
+		REGEXP_COUNT(P.NATIVE_SQL, RG.REGEX, 1, 'ix') > 0
+*/
+
+
+GO
+*/
+
+</pre></div></div><script>
+var sourceLanguage = 'sql';
+var sourceEditorSelections = [{start:76, end:849, guid:'e29e2780-6490-40c1-91c6-d8b5df0a8624', reflection:['629646ab-8223-4024-8214-b173e57195cd'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:0, end:850, guid:'7467e4af-62ec-45e3-8152-d0386ba8af7d', reflection:['2eac1602-34e2-438d-bd06-152792befaf7'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]}];
+var targetLanguage = 'sql';
+var targetEditorSelections = [{start:423, end:1234, guid:'629646ab-8223-4024-8214-b173e57195cd', reflection:['e29e2780-6490-40c1-91c6-d8b5df0a8624'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:250, end:1239, guid:'2eac1602-34e2-438d-bd06-152792befaf7', reflection:['7467e4af-62ec-45e3-8152-d0386ba8af7d'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:['O2SS0522']},{start:0, end:1247, guid:'901e70fa-e3f0-4e27-8362-07910c710c08', reflection:[], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:['O2SS0050','O2SS0050']}];
+</script><script src='../js/code.js'></script></body></html>

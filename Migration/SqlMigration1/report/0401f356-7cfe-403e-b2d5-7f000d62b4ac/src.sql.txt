@@ -1,0 +1,7 @@
+CREATE OR REPLACE procedure DeleteFilmGenre (
+p_ID in FILM_GENRES.ID%type
+) is
+begin
+    delete from FILM_GENRES
+    where ID = p_ID;
+end;

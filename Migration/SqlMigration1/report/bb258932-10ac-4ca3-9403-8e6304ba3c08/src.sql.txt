@@ -1,0 +1,8 @@
+CREATE OR REPLACE procedure AddFilmGenre (
+p_FILM_ID in FILM_GENRES.FILM_ID%type,
+p_GENRE_ID in FILM_GENRES.GENRE_ID%type
+) is
+begin
+    insert into FILM_GENRES(FILM_ID, GENRE_ID) values 
+    (p_FILM_ID, p_GENRE_ID);
+end;

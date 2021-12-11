@@ -1,0 +1,1241 @@
+<html>
+<head>
+<meta http-equiv='Content-Type' content='text/html; charset=UTF-8'>
+<meta http-equiv='X-UA-Compatible' content='IE=edge' />
+<link rel=stylesheet data-name='vs/editor/editor.main' href='../monaco/editor.main.css' type='text/css'>
+<link rel='stylesheet' type='text/css' href='../css/style.css'></link>
+<script type='text/javascript' src='../js/functions.js'></script>
+<script async='async' type='text/javascript' src='../monaco/sql.js'></script>
+<script src='../monaco/loader.js'></script>
+<script src='../monaco/editor.main.nls.js'></script>
+<script src='../monaco/editor.main.js'></script>
+</head>
+<body class='sql-body' id='scrollable-body'>
+<div id='left-side' class='left-side'><div class='panel'>
+<span class='panel-title source'>&nbsp;Source</span>
+<img tabindex='0' aria-label='Previous problem' role='button' class='nav-button nav-button-disabled' id='source_previous_problem' src='../img/previous_problem.gif' onclick='handleProblemButtonClick(-1, true)' title='Previous problem' />
+<img tabindex='0' aria-label='Next problem' role='button' class='nav-button nav-button-disabled' id='source_next_problem' src='../img/next_problem.gif' onclick='handleProblemButtonClick(1, true)' title='Next problem' />
+<img tabindex='0' aria-label='Previous bookmark' role='button' class='nav-button nav-button-disabled' id='source_previous_bookmark' src='../img/previous_bookmark.gif' onclick='handleBookmarkButtonClick(-1, true)' title='Previous bookmark' />
+<img tabindex='0' aria-label='Next bookmark' role='button' class='nav-button nav-button-disabled' id='source_next_bookmark' src='../img/next_bookmark.gif' onclick='handleBookmarkButtonClick(1, true)' title='Next bookmark' />
+<img tabindex='0' aria-label='Clear bookmarks' role='button' class='nav-button nav-button-disabled' id='source_clear_bookmarks' src='../img/clear_bookmarks.gif' onclick='handleBookmarkButtonClick(0, true)' title='Clear bookmarks' />
+<a class='raw-source-link' target='_blank' aria-label='Raw source' href='./src.sql.txt');'>Raw source</a>
+</div>
+<div class='editor-container'>
+<div id='monaco-left-side'></div><pre id='monaco-left-side-sql'>
+CREATE OR REPLACE 
+	FUNCTION get_network_metadata 
+		(
+			metadata_type VARCHAR2, 
+			options VARCHAR2 default NULL, 
+			p_network_owner VARCHAR2 default NULL, 
+			p_network_name VARCHAR2 default NULL
+		)
+		 RETURN MDSYS.RDF_Graphs
+		
+	AS
+	
+		FORM_STR_SEP CONSTANT VARCHAR2(30) := ' |+| ';
+		u_metadata varchar2(30) := nls_UPPER(metadata_type);
+		q_networkOwner varchar2(130);
+		selstmt VARCHAR2(300);
+		query_cv sys_refcursor;
+		prefix VARCHAR2(70);
+		table_suffix varchar2(128);
+		vlist sys.odcivarchar2list;/* list of retrieved values*/
+		clist sys.odcivarchar2list;/* list of column names*/
+		cv_list varchar2(4000);/* formatted &lt;col,val> list*/
+		models_clist CONSTANT sys.odcivarchar2list := sys.odcivarchar2list(
+			'OWNER', 
+			'MODEL_ID', 
+			'MODEL_NAME', 
+			'TABLE_NAME', 
+			'COLUMN_NAME', 
+			'MODEL_TABLESPACE_NAME', 
+			'MODEL_TYPE', 
+			'INMEMORY');
+		rulebases_clist CONSTANT sys.odcivarchar2list := sys.odcivarchar2list('OWNER', 'RULEBASE_NAME', 'RULEBASE_VIEW_NAME', 'STATUS');
+		entailments_clist CONSTANT sys.odcivarchar2list := sys.odcivarchar2list(
+			'OWNER', 
+			'INDEX_NAME', 
+			'INDEX_VIEW_NAME', 
+			'STATUS', 
+			'MODEL_COUNT', 
+			'RULEBASE_COUNT');
+		datatype_indexes_clist CONSTANT sys.odcivarchar2list := sys.odcivarchar2list(
+			'DATATYPE', 
+			'INDEX_NAME', 
+			'STATUS', 
+			'TABLESPACE_NAME', 
+			'FUNCIDX_STATUS');
+		network_indexes_clist CONSTANT sys.odcivarchar2list := sys.odcivarchar2list(
+			'NAME', 
+			'IDX_TYPE', 
+			'ID', 
+			'INDEX_CODE', 
+			'INDEX_NAME', 
+			'LAST_REFRESH', 
+			'STATUS', 
+			'TABLESPACE_NAME', 
+			'UNIQUENESS', 
+			'COMPRESSION', 
+			'PREFIX_LENGTH', 
+			'BLEVEL', 
+			'LEAF_BLOCKS', 
+			'NUM_ROWS', 
+			'DISTINCT_KEYS', 
+			'AVG_LEAF_BLOCKS_PER_KEY', 
+			'AVG_DATA_BLOCKS_PER_KEY', 
+			'CLUSTERING_FACTOR', 
+			'SAMPLE_SIZE', 
+			'LAST_ANALYZED');
+		virtual_model_info_clist CONSTANT sys.odcivarchar2list := sys.odcivarchar2list(
+			'OWNER', 
+			'VIRTUAL_MODEL_NAME', 
+			'UNIQUE_VIEW_NAME', 
+			'DUPLICATE_VIEW_NAME', 
+			'STATUS', 
+			'MODEL_COUNT', 
+			'RULEBASE_COUNT', 
+			'RULES_INDEX_COUNT');
+		virtual_model_datasets_clist CONSTANT sys.odcivarchar2list := sys.odcivarchar2list('VIRTUAL_MODEL_NAME', 'DATA_TYPE', 'DATA_NAME');
+		entailment_datasets_clist CONSTANT sys.odcivarchar2list := sys.odcivarchar2list('INDEX_NAME', 'DATA_TYPE', 'DATA_NAME');
+		OWNER VARCHAR2(128);
+		MODEL_ID NUMBER;
+		MODEL_NAME VARCHAR2(128);
+		TABLE_NAME VARCHAR2(128);
+		COLUMN_NAME VARCHAR2(128);
+		MODEL_TABLESPACE_NAME VARCHAR2(128);
+		MODEL_TYPE VARCHAR2(40);
+		INMEMORY VARCHAR2(1);
+		RULEBASE_NAME VARCHAR2(128);
+		RULEBASE_VIEW_NAME VARCHAR2(133);
+		STATUS VARCHAR2(30);
+		INDEX_NAME VARCHAR2(128);
+		INDEX_VIEW_NAME VARCHAR2(133);
+		MODEL_COUNT NUMBER;
+		RULEBASE_COUNT NUMBER;
+		DATATYPE VARCHAR2(51);
+		TABLESPACE_NAME VARCHAR2(30);
+		FUNCIDX_STATUS VARCHAR2(8);
+		NAME VARCHAR2(128);
+		IDX_TYPE VARCHAR2(10);
+		ID NUMBER;
+		INDEX_CODE VARCHAR2(100);
+		LAST_REFRESH TIMESTAMP(6) WITH TIME ZONE;
+		UNIQUENESS VARCHAR2(9);
+		COMPRESSION VARCHAR2(13);
+		PREFIX_LENGTH NUMBER;
+		BLEVEL NUMBER;
+		LEAF_BLOCKS NUMBER;
+		NUM_ROWS NUMBER;
+		DISTINCT_KEYS NUMBER;
+		AVG_LEAF_BLOCKS_PER_KEY NUMBER;
+		AVG_DATA_BLOCKS_PER_KEY NUMBER;
+		CLUSTERING_FACTOR NUMBER;
+		SAMPLE_SIZE NUMBER;
+		LAST_ANALYZED DATE;
+		VIRTUAL_MODEL_NAME VARCHAR2(128);
+		UNIQUE_VIEW_NAME VARCHAR2(128);
+		DUPLICATE_VIEW_NAME VARCHAR2(128);
+		RULES_INDEX_COUNT NUMBER;
+		DATA_TYPE VARCHAR2(8);
+		DATA_NAME VARCHAR2(128);
+		FUNCTION format_cv_list 
+			(
+				clist sys.odcivarchar2list, 
+				vlist sys.odcivarchar2list, 
+				options varchar2 default NULL
+			)
+			 RETURN varchar2
+		AS
+		
+			sep CONSTANT varchar2(30) := FORM_STR_SEP;
+			formatted_str varchar2(4000) := NULL;
+		BEGIN 
+
+			IF 
+				clist IS NULL OR 
+				vlist IS NULL OR 
+				(clist.COUNT != vlist.COUNT) OR 
+				(clist.COUNT = 0) THEN 
+				raise_application_error(-20000, 'count mismatch or zero-count: clist.COUNT=' || clist.COUNT || ' vlist.COUNT=' || vlist.COUNT);
+			END IF;
+
+			FOR i IN 1..clist.COUNT LOOP 
+				formatted_str := formatted_str || sep || (
+					CASE 
+						WHEN instr(nls_UPPER(options), 'INCLUDE_COLNAME') > 0 THEN (clist(i) || '=')
+						ELSE NULL
+					END) || vlist(i);
+			END LOOP;
+
+			formatted_str := formatted_str || sep;
+
+			RETURN formatted_str;
+
+		END format_cv_list;
+	BEGIN 
+
+		table_suffix := 
+			CASE 
+				u_metadata
+					WHEN 'MODELS' THEN 'sem_model$'
+					WHEN 'RULEBASES' THEN 'sem_rulebase_info'
+					WHEN 'ENTAILMENTS' THEN 'sem_rules_index_info'
+					WHEN 'DATATYPE_INDEXES' THEN 'sem_dtype_index_info'
+					WHEN 'NETWORK_INDEXES' THEN 'sem_network_index_info'
+					WHEN 'VIRTUAL_MODEL_INFO' THEN 'sem_vmodel_info'
+					WHEN 'VIRTUAL_MODEL_DATASETS' THEN 'sem_vmodel_datasets'
+					WHEN 'ENTAILMENT_DATASETS' THEN 'sem_rules_index_datasets'
+					ELSE 'UNKNOWN'
+			END;
+
+		IF (table_suffix = 'UNKNOWN') THEN 
+			raise_application_error(-20000, 'Unknown metadata type: ' || metadata_type);
+		END IF;
+
+		clist := 
+			CASE 
+				u_metadata
+					WHEN 'MODELS' THEN models_clist
+					WHEN 'RULEBASES' THEN rulebases_clist
+					WHEN 'ENTAILMENTS' THEN entailments_clist
+					WHEN 'DATATYPE_INDEXES' THEN datatype_indexes_clist
+					WHEN 'NETWORK_INDEXES' THEN network_indexes_clist
+					WHEN 'VIRTUAL_MODEL_INFO' THEN virtual_model_info_clist
+					WHEN 'VIRTUAL_MODEL_DATASETS' THEN virtual_model_datasets_clist
+					WHEN 'ENTAILMENT_DATASETS' THEN entailment_datasets_clist
+					ELSE NULL
+			END;
+
+		IF (clist IS NULL) THEN 
+			raise_application_error(-20000, 'Unknown metadata type: ' || metadata_type);
+		END IF;
+
+		prefix := '"MDSYS".';
+
+		IF (p_network_owner IS NOT NULL) THEN 
+
+			q_networkOwner := sys.dbms_assert.enquote_name(p_network_owner, TRUE);
+
+			IF (q_networkOwner != '"MDSYS"') THEN 
+				IF (p_network_name IS NOT NULL) THEN 
+					prefix := q_networkOwner || '.' || p_network_name || '#';
+				ELSE 
+					raise_application_error(-20000, 'p_network_name must not be NULL when p_network_owner=' || q_networkOwner);
+				END IF;
+			ELSIF (p_network_name IS NOT NULL) THEN 
+				raise_application_error(-20000, 'p_network_name must be NULL when p_network_owner=' || q_networkOwner);
+			END IF;
+
+		END IF;
+
+		selstmt := 'select * from ' || sys.dbms_assert.qualified_sql_name(prefix || table_suffix);
+
+		OPEN query_cv
+			FOR selstmt;
+
+		LOOP 
+			IF u_metadata = 'MODELS' THEN 
+
+				FETCH query_cv
+					INTO 
+						OWNER, 
+						MODEL_ID, 
+						MODEL_NAME, 
+						TABLE_NAME, 
+						COLUMN_NAME, 
+						MODEL_TABLESPACE_NAME, 
+						MODEL_TYPE, 
+						INMEMORY;
+
+				EXIT WHEN (query_cv%NOTFOUND);
+
+				vlist := sys.odcivarchar2list(
+					OWNER, 
+					MODEL_ID, 
+					MODEL_NAME, 
+					TABLE_NAME, 
+					COLUMN_NAME, 
+					MODEL_TABLESPACE_NAME, 
+					MODEL_TYPE, 
+					INMEMORY);
+
+			ELSIF u_metadata = 'RULEBASES' THEN 
+
+				FETCH query_cv
+					INTO OWNER, RULEBASE_NAME, RULEBASE_VIEW_NAME, STATUS;
+
+				EXIT WHEN (query_cv%NOTFOUND);
+
+				vlist := sys.odcivarchar2list(OWNER, RULEBASE_NAME, RULEBASE_VIEW_NAME, STATUS);
+
+			ELSIF u_metadata = 'ENTAILMENTS' THEN 
+
+				FETCH query_cv
+					INTO 
+						OWNER, 
+						INDEX_NAME, 
+						INDEX_VIEW_NAME, 
+						STATUS, 
+						MODEL_COUNT, 
+						RULEBASE_COUNT;
+
+				EXIT WHEN (query_cv%NOTFOUND);
+
+				vlist := sys.odcivarchar2list(
+					OWNER, 
+					INDEX_NAME, 
+					INDEX_VIEW_NAME, 
+					STATUS, 
+					MODEL_COUNT, 
+					RULEBASE_COUNT);
+
+			ELSIF u_metadata = 'DATATYPE_INDEXES' THEN 
+
+				FETCH query_cv
+					INTO 
+						DATATYPE, 
+						INDEX_NAME, 
+						STATUS, 
+						TABLESPACE_NAME, 
+						FUNCIDX_STATUS;
+
+				EXIT WHEN (query_cv%NOTFOUND);
+
+				vlist := sys.odcivarchar2list(
+					DATATYPE, 
+					INDEX_NAME, 
+					STATUS, 
+					TABLESPACE_NAME, 
+					FUNCIDX_STATUS);
+
+			ELSIF u_metadata = 'NETWORK_INDEXES' THEN 
+
+				FETCH query_cv
+					INTO 
+						NAME, 
+						IDX_TYPE, 
+						ID, 
+						INDEX_CODE, 
+						INDEX_NAME, 
+						LAST_REFRESH, 
+						STATUS, 
+						TABLESPACE_NAME, 
+						UNIQUENESS, 
+						COMPRESSION, 
+						PREFIX_LENGTH, 
+						BLEVEL, 
+						LEAF_BLOCKS, 
+						NUM_ROWS, 
+						DISTINCT_KEYS, 
+						AVG_LEAF_BLOCKS_PER_KEY, 
+						AVG_DATA_BLOCKS_PER_KEY, 
+						CLUSTERING_FACTOR, 
+						SAMPLE_SIZE, 
+						LAST_ANALYZED;
+
+				EXIT WHEN (query_cv%NOTFOUND);
+
+				vlist := sys.odcivarchar2list(
+					NAME, 
+					IDX_TYPE, 
+					ID, 
+					INDEX_CODE, 
+					INDEX_NAME, 
+					LAST_REFRESH, 
+					STATUS, 
+					TABLESPACE_NAME, 
+					UNIQUENESS, 
+					COMPRESSION, 
+					PREFIX_LENGTH, 
+					BLEVEL, 
+					LEAF_BLOCKS, 
+					NUM_ROWS, 
+					DISTINCT_KEYS, 
+					AVG_LEAF_BLOCKS_PER_KEY, 
+					AVG_DATA_BLOCKS_PER_KEY, 
+					CLUSTERING_FACTOR, 
+					SAMPLE_SIZE, 
+					LAST_ANALYZED);
+
+			ELSIF u_metadata = 'VIRTUAL_MODEL_INFO' THEN 
+
+				FETCH query_cv
+					INTO 
+						OWNER, 
+						VIRTUAL_MODEL_NAME, 
+						UNIQUE_VIEW_NAME, 
+						DUPLICATE_VIEW_NAME, 
+						STATUS, 
+						MODEL_COUNT, 
+						RULEBASE_COUNT, 
+						RULES_INDEX_COUNT;
+
+				EXIT WHEN (query_cv%NOTFOUND);
+
+				vlist := sys.odcivarchar2list(
+					OWNER, 
+					VIRTUAL_MODEL_NAME, 
+					UNIQUE_VIEW_NAME, 
+					DUPLICATE_VIEW_NAME, 
+					STATUS, 
+					MODEL_COUNT, 
+					RULEBASE_COUNT, 
+					RULES_INDEX_COUNT);
+
+			ELSIF u_metadata = 'VIRTUAL_MODEL_DATASETS' THEN 
+
+				FETCH query_cv
+					INTO VIRTUAL_MODEL_NAME, DATA_TYPE, DATA_NAME;
+
+				EXIT WHEN (query_cv%NOTFOUND);
+
+				vlist := sys.odcivarchar2list(VIRTUAL_MODEL_NAME, DATA_TYPE, DATA_NAME);
+
+			ELSIF u_metadata = 'ENTAILMENT_DATASETS' THEN 
+
+				FETCH query_cv
+					INTO INDEX_NAME, DATA_TYPE, DATA_NAME;
+
+				EXIT WHEN (query_cv%NOTFOUND);
+
+				vlist := sys.odcivarchar2list(INDEX_NAME, DATA_TYPE, DATA_NAME);
+
+			ELSE 
+				raise_application_error(-20000, 'Unknown metadata type: ' || metadata_type);
+			END IF;
+			cv_list := format_cv_list(clist, vlist, options);
+			PIPE ROW(cv_list);
+		END LOOP;
+
+	END get_network_metadata;
+</pre></div></div><div id='resize-bar' class='resize-bar'></div><div id='right-side' class='right-side'><div class='panel'>
+<span class='panel-title target'>&nbsp;Target</span>
+<img tabindex='0' aria-label='Previous problem' role='button' class='nav-button nav-button-disabled' id='target_previous_problem' src='../img/previous_problem.gif' onclick='handleProblemButtonClick(-1, false)' title='Previous problem' />
+<img tabindex='0' aria-label='Next problem' role='button' class='nav-button nav-button-disabled' id='target_next_problem' src='../img/next_problem.gif' onclick='handleProblemButtonClick(1, false)' title='Next problem' />
+<img tabindex='0' aria-label='Previous bookmark' role='button' class='nav-button nav-button-disabled' id='target_previous_bookmark' src='../img/previous_bookmark.gif' onclick='handleBookmarkButtonClick(-1, false)' title='Previous bookmark' />
+<img tabindex='0' aria-label='Next bookmark' role='button' class='nav-button nav-button-disabled' id='target_next_bookmark' src='../img/next_bookmark.gif' onclick='handleBookmarkButtonClick(1, false)' title='Next bookmark' />
+<img tabindex='0' aria-label='Clear bookmarks' role='button' class='nav-button nav-button-disabled' id='target_clear_bookmarks' src='../img/clear_bookmarks.gif' onclick='handleBookmarkButtonClick(0, false)' title='Clear bookmarks' />
+</div>
+<div class='editor-container'>
+<div id='monaco-right-side'></div><pre id='monaco-right-side-sql'>
+/* 
+*   SSMA error messages:
+*   O2SS0001: The following SQL clause cannot be converted: 
+*   
+*
+
+CREATE PROCEDURE MOVIE_USER.GET_NETWORK_METADATA$IMPL  
+	@METADATA_TYPE varchar(max),
+	@OPTIONS varchar(max) = NULL,
+	@P_NETWORK_OWNER varchar(max) = NULL,
+	@P_NETWORK_NAME varchar(max) = NULL,
+	@return_value_argument varchar(8000)  OUTPUT
+AS 
+	BEGIN
+
+		DECLARE
+			@FORM_STR_SEP varchar(30) = ' |+| ', 
+			@U_METADATA varchar(30) 
+				/* 
+				*   SSMA error messages:
+				*   O2SS0050: Conversion of identifier 'nls_UPPER(VARCHAR2)' is not supported.
+= NLS_UPPER(@METADATA_TYPE)
+				*/
+
+, 
+			@Q_NETWORKOWNER varchar(130), 
+			@SELSTMT varchar(300), 
+			@v_QUERY_CV_ROWCOUNT int, 
+			@QUERY_CV CURSOR, 
+			@PREFIX varchar(70), 
+			@TABLE_SUFFIX varchar(128), 
+			/* 
+			*   SSMA error messages:
+			*   O2SS0474: Conversion of user defined type variable is not supported and 'sys.odcivarchar2list' is converted to type of VARCHAR(8000).
+			*/
+
+			@VLIST varchar(8000)/* list of retrieved values*/, 
+			/* 
+			*   SSMA error messages:
+			*   O2SS0474: Conversion of user defined type variable is not supported and 'sys.odcivarchar2list' is converted to type of VARCHAR(8000).
+			*/
+
+			@CLIST varchar(8000)/* list of column names*/, 
+			@CV_LIST varchar(4000)/* formatted &lt;col,val> list*/, 
+			/* 
+			*   SSMA error messages:
+			*   O2SS0474: Conversion of user defined type variable is not supported and 'sys.odcivarchar2list' is converted to type of VARCHAR(8000).
+			*/
+
+			@MODELS_CLIST varchar(8000) 
+				/* 
+				*   SSMA error messages:
+				*   O2SS0050: Conversion of identifier 'sys.odcivarchar2list(CHAR, CHAR, CHAR, CHAR, CHAR, CHAR, CHAR, CHAR)' is not supported.
+= SYS.ODCIVARCHAR2LIST(
+				'OWNER', 
+				'MODEL_ID', 
+				'MODEL_NAME', 
+				'TABLE_NAME', 
+				'COLUMN_NAME', 
+				'MODEL_TABLESPACE_NAME', 
+				'MODEL_TYPE', 
+				'INMEMORY')
+				*/
+
+, 
+			/* 
+			*   SSMA error messages:
+			*   O2SS0474: Conversion of user defined type variable is not supported and 'sys.odcivarchar2list' is converted to type of VARCHAR(8000).
+			*/
+
+			@RULEBASES_CLIST varchar(8000) 
+				/* 
+				*   SSMA error messages:
+				*   O2SS0050: Conversion of identifier 'sys.odcivarchar2list(CHAR, CHAR, CHAR, CHAR)' is not supported.
+= SYS.ODCIVARCHAR2LIST('OWNER', 'RULEBASE_NAME', 'RULEBASE_VIEW_NAME', 'STATUS')
+				*/
+
+, 
+			/* 
+			*   SSMA error messages:
+			*   O2SS0474: Conversion of user defined type variable is not supported and 'sys.odcivarchar2list' is converted to type of VARCHAR(8000).
+			*/
+
+			@ENTAILMENTS_CLIST varchar(8000) 
+				/* 
+				*   SSMA error messages:
+				*   O2SS0050: Conversion of identifier 'sys.odcivarchar2list(CHAR, CHAR, CHAR, CHAR, CHAR, CHAR)' is not supported.
+= SYS.ODCIVARCHAR2LIST(
+				'OWNER', 
+				'INDEX_NAME', 
+				'INDEX_VIEW_NAME', 
+				'STATUS', 
+				'MODEL_COUNT', 
+				'RULEBASE_COUNT')
+				*/
+
+, 
+			/* 
+			*   SSMA error messages:
+			*   O2SS0474: Conversion of user defined type variable is not supported and 'sys.odcivarchar2list' is converted to type of VARCHAR(8000).
+			*/
+
+			@DATATYPE_INDEXES_CLIST varchar(8000) 
+				/* 
+				*   SSMA error messages:
+				*   O2SS0050: Conversion of identifier 'sys.odcivarchar2list(CHAR, CHAR, CHAR, CHAR, CHAR)' is not supported.
+= SYS.ODCIVARCHAR2LIST(
+				'DATATYPE', 
+				'INDEX_NAME', 
+				'STATUS', 
+				'TABLESPACE_NAME', 
+				'FUNCIDX_STATUS')
+				*/
+
+, 
+			/* 
+			*   SSMA error messages:
+			*   O2SS0474: Conversion of user defined type variable is not supported and 'sys.odcivarchar2list' is converted to type of VARCHAR(8000).
+			*/
+
+			@NETWORK_INDEXES_CLIST varchar(8000) 
+				/* 
+				*   SSMA error messages:
+				*   O2SS0050: Conversion of identifier 'sys.odcivarchar2list(CHAR, CHAR, CHAR, CHAR, CHAR, CHAR, CHAR, CHAR, CHAR, CHAR, CHAR, CHAR, CHAR, CHAR, CHAR, CHAR, CHAR, CHAR, CHAR, CHAR)' is not supported.
+= SYS.ODCIVARCHAR2LIST(
+				'NAME', 
+				'IDX_TYPE', 
+				'ID', 
+				'INDEX_CODE', 
+				'INDEX_NAME', 
+				'LAST_REFRESH', 
+				'STATUS', 
+				'TABLESPACE_NAME', 
+				'UNIQUENESS', 
+				'COMPRESSION', 
+				'PREFIX_LENGTH', 
+				'BLEVEL', 
+				'LEAF_BLOCKS', 
+				'NUM_ROWS', 
+				'DISTINCT_KEYS', 
+				'AVG_LEAF_BLOCKS_PER_KEY', 
+				'AVG_DATA_BLOCKS_PER_KEY', 
+				'CLUSTERING_FACTOR', 
+				'SAMPLE_SIZE', 
+				'LAST_ANALYZED')
+				*/
+
+, 
+			/* 
+			*   SSMA error messages:
+			*   O2SS0474: Conversion of user defined type variable is not supported and 'sys.odcivarchar2list' is converted to type of VARCHAR(8000).
+			*/
+
+			@VIRTUAL_MODEL_INFO_CLIST varchar(8000) 
+				/* 
+				*   SSMA error messages:
+				*   O2SS0050: Conversion of identifier 'sys.odcivarchar2list(CHAR, CHAR, CHAR, CHAR, CHAR, CHAR, CHAR, CHAR)' is not supported.
+= SYS.ODCIVARCHAR2LIST(
+				'OWNER', 
+				'VIRTUAL_MODEL_NAME', 
+				'UNIQUE_VIEW_NAME', 
+				'DUPLICATE_VIEW_NAME', 
+				'STATUS', 
+				'MODEL_COUNT', 
+				'RULEBASE_COUNT', 
+				'RULES_INDEX_COUNT')
+				*/
+
+, 
+			/* 
+			*   SSMA error messages:
+			*   O2SS0474: Conversion of user defined type variable is not supported and 'sys.odcivarchar2list' is converted to type of VARCHAR(8000).
+			*/
+
+			@VIRTUAL_MODEL_DATASETS_CLIST varchar(8000) 
+				/* 
+				*   SSMA error messages:
+				*   O2SS0050: Conversion of identifier 'sys.odcivarchar2list(CHAR, CHAR, CHAR)' is not supported.
+= SYS.ODCIVARCHAR2LIST('VIRTUAL_MODEL_NAME', 'DATA_TYPE', 'DATA_NAME')
+				*/
+
+, 
+			/* 
+			*   SSMA error messages:
+			*   O2SS0474: Conversion of user defined type variable is not supported and 'sys.odcivarchar2list' is converted to type of VARCHAR(8000).
+			*/
+
+			@ENTAILMENT_DATASETS_CLIST varchar(8000) 
+				/* 
+				*   SSMA error messages:
+				*   O2SS0050: Conversion of identifier 'sys.odcivarchar2list(CHAR, CHAR, CHAR)' is not supported.
+= SYS.ODCIVARCHAR2LIST('INDEX_NAME', 'DATA_TYPE', 'DATA_NAME')
+				*/
+
+, 
+			@OWNER varchar(128), 
+			/*
+			*   SSMA warning messages:
+			*   O2SS0356: Conversion from NUMBER datatype can cause data loss.
+			*/
+
+			@MODEL_ID float(53), 
+			@MODEL_NAME varchar(128), 
+			@TABLE_NAME varchar(128), 
+			@COLUMN_NAME varchar(128), 
+			@MODEL_TABLESPACE_NAME varchar(128), 
+			@MODEL_TYPE varchar(40), 
+			@INMEMORY varchar(1), 
+			@RULEBASE_NAME varchar(128), 
+			@RULEBASE_VIEW_NAME varchar(133), 
+			@STATUS varchar(30), 
+			@INDEX_NAME varchar(128), 
+			@INDEX_VIEW_NAME varchar(133), 
+			/*
+			*   SSMA warning messages:
+			*   O2SS0356: Conversion from NUMBER datatype can cause data loss.
+			*/
+
+			@MODEL_COUNT float(53), 
+			/*
+			*   SSMA warning messages:
+			*   O2SS0356: Conversion from NUMBER datatype can cause data loss.
+			*/
+
+			@RULEBASE_COUNT float(53), 
+			@DATATYPE varchar(51), 
+			@TABLESPACE_NAME varchar(30), 
+			@FUNCIDX_STATUS varchar(8), 
+			@NAME varchar(128), 
+			@IDX_TYPE varchar(10), 
+			/*
+			*   SSMA warning messages:
+			*   O2SS0356: Conversion from NUMBER datatype can cause data loss.
+			*/
+
+			@ID float(53), 
+			@INDEX_CODE varchar(100), 
+			@LAST_REFRESH datetimeoffset(6), 
+			@UNIQUENESS varchar(9), 
+			@COMPRESSION varchar(13), 
+			/*
+			*   SSMA warning messages:
+			*   O2SS0356: Conversion from NUMBER datatype can cause data loss.
+			*/
+
+			@PREFIX_LENGTH float(53), 
+			/*
+			*   SSMA warning messages:
+			*   O2SS0356: Conversion from NUMBER datatype can cause data loss.
+			*/
+
+			@BLEVEL float(53), 
+			/*
+			*   SSMA warning messages:
+			*   O2SS0356: Conversion from NUMBER datatype can cause data loss.
+			*/
+
+			@LEAF_BLOCKS float(53), 
+			/*
+			*   SSMA warning messages:
+			*   O2SS0356: Conversion from NUMBER datatype can cause data loss.
+			*/
+
+			@NUM_ROWS float(53), 
+			/*
+			*   SSMA warning messages:
+			*   O2SS0356: Conversion from NUMBER datatype can cause data loss.
+			*/
+
+			@DISTINCT_KEYS float(53), 
+			/*
+			*   SSMA warning messages:
+			*   O2SS0356: Conversion from NUMBER datatype can cause data loss.
+			*/
+
+			@AVG_LEAF_BLOCKS_PER_KEY float(53), 
+			/*
+			*   SSMA warning messages:
+			*   O2SS0356: Conversion from NUMBER datatype can cause data loss.
+			*/
+
+			@AVG_DATA_BLOCKS_PER_KEY float(53), 
+			/*
+			*   SSMA warning messages:
+			*   O2SS0356: Conversion from NUMBER datatype can cause data loss.
+			*/
+
+			@CLUSTERING_FACTOR float(53), 
+			/*
+			*   SSMA warning messages:
+			*   O2SS0356: Conversion from NUMBER datatype can cause data loss.
+			*/
+
+			@SAMPLE_SIZE float(53), 
+			@LAST_ANALYZED datetime2(0), 
+			@VIRTUAL_MODEL_NAME varchar(128), 
+			@UNIQUE_VIEW_NAME varchar(128), 
+			@DUPLICATE_VIEW_NAME varchar(128), 
+			/*
+			*   SSMA warning messages:
+			*   O2SS0356: Conversion from NUMBER datatype can cause data loss.
+			*/
+
+			@RULES_INDEX_COUNT float(53), 
+			@DATA_TYPE varchar(8), 
+			@DATA_NAME varchar(128)
+
+		SET @TABLE_SUFFIX = 
+			CASE @U_METADATA
+				WHEN 'MODELS' THEN 'sem_model$'
+				WHEN 'RULEBASES' THEN 'sem_rulebase_info'
+				WHEN 'ENTAILMENTS' THEN 'sem_rules_index_info'
+				WHEN 'DATATYPE_INDEXES' THEN 'sem_dtype_index_info'
+				WHEN 'NETWORK_INDEXES' THEN 'sem_network_index_info'
+				WHEN 'VIRTUAL_MODEL_INFO' THEN 'sem_vmodel_info'
+				WHEN 'VIRTUAL_MODEL_DATASETS' THEN 'sem_vmodel_datasets'
+				WHEN 'ENTAILMENT_DATASETS' THEN 'sem_rules_index_datasets'
+				ELSE 'UNKNOWN'
+			END
+
+		IF (@TABLE_SUFFIX = 'UNKNOWN')
+			BEGIN
+
+				DECLARE
+					@db_raise_application_error_message nvarchar(4000)
+
+				SET @db_raise_application_error_message = N'ORA' + CAST(-20000 AS nvarchar) + N': ' + ('Unknown metadata type: ' + ISNULL(@METADATA_TYPE, ''))
+
+				RAISERROR(59998, 16, 1, @db_raise_application_error_message)
+
+			END
+
+		SET @CLIST = 
+			CASE @U_METADATA
+				WHEN 'MODELS' THEN @MODELS_CLIST
+				WHEN 'RULEBASES' THEN @RULEBASES_CLIST
+				WHEN 'ENTAILMENTS' THEN @ENTAILMENTS_CLIST
+				WHEN 'DATATYPE_INDEXES' THEN @DATATYPE_INDEXES_CLIST
+				WHEN 'NETWORK_INDEXES' THEN @NETWORK_INDEXES_CLIST
+				WHEN 'VIRTUAL_MODEL_INFO' THEN @VIRTUAL_MODEL_INFO_CLIST
+				WHEN 'VIRTUAL_MODEL_DATASETS' THEN @VIRTUAL_MODEL_DATASETS_CLIST
+				WHEN 'ENTAILMENT_DATASETS' THEN @ENTAILMENT_DATASETS_CLIST
+				ELSE NULL
+			END
+
+		IF (@CLIST IS NULL)
+			BEGIN
+
+				DECLARE
+					@db_raise_application_error_message$2 nvarchar(4000)
+
+				SET @db_raise_application_error_message$2 = N'ORA' + CAST(-20000 AS nvarchar) + N': ' + ('Unknown metadata type: ' + ISNULL(@METADATA_TYPE, ''))
+
+				RAISERROR(59998, 16, 1, @db_raise_application_error_message$2)
+
+			END
+
+		SET @PREFIX = '"MDSYS".'
+
+		IF (@P_NETWORK_OWNER IS NOT NULL)
+			BEGIN
+
+				/* 
+				*   SSMA error messages:
+				*   O2SS0560: Identifier sys.dbms_assert.enquote_name cannot be converted because it was not resolved.
+				*   This may happen because system package that defines the identifier was excluded from loading in Project Settings.
+
+				SET @Q_NETWORKOWNER = SYS.DBMS_ASSERT.ENQUOTE_NAME
+				*/
+
+
+
+				IF (@Q_NETWORKOWNER != '"MDSYS"')
+					IF (@P_NETWORK_NAME IS NOT NULL)
+						SET @PREFIX = ISNULL(@Q_NETWORKOWNER, '') + '.' + ISNULL(@P_NETWORK_NAME, '') + '#'
+					ELSE 
+						BEGIN
+
+							DECLARE
+								@db_raise_application_error_message$3 nvarchar(4000)
+
+							SET @db_raise_application_error_message$3 = N'ORA' + CAST(-20000 AS nvarchar) + N': ' + ('p_network_name must not be NULL when p_network_owner=' + ISNULL(@Q_NETWORKOWNER, ''))
+
+							RAISERROR(59998, 16, 1, @db_raise_application_error_message$3)
+
+						END
+				ELSE 
+					BEGIN
+						IF (@P_NETWORK_NAME IS NOT NULL)
+							BEGIN
+
+								DECLARE
+									@db_raise_application_error_message$4 nvarchar(4000)
+
+								SET @db_raise_application_error_message$4 = N'ORA' + CAST(-20000 AS nvarchar) + N': ' + ('p_network_name must be NULL when p_network_owner=' + ISNULL(@Q_NETWORKOWNER, ''))
+
+								RAISERROR(59998, 16, 1, @db_raise_application_error_message$4)
+
+							END
+					END
+
+			END
+
+		/* 
+		*   SSMA error messages:
+		*   O2SS0560: Identifier sys.dbms_assert.qualified_sql_name cannot be converted because it was not resolved.
+		*   This may happen because system package that defines the identifier was excluded from loading in Project Settings.
+
+		SET @SELSTMT = 'select * from ' + ISNULL(CAST(SYS.DBMS_ASSERT.QUALIFIED_SQL_NAME AS nvarchar(max)), '')
+		*/
+
+
+
+		SET @v_QUERY_CV_ROWCOUNT = 0
+
+		DECLARE
+			@auxiliary_cursor_definition_sql nvarchar(max)
+
+		DECLARE
+			@auxiliary_exec_param nvarchar(max)
+
+		IF (cursor_status('variable', N'@QUERY_CV') > -2)
+			DEALLOCATE @QUERY_CV
+
+		/* 
+		*   SSMA error messages:
+		*   O2SS0157: The OPEN...FOR statement will be converted, but the dynamic string must be converted manually.
+
+		SET @auxiliary_cursor_definition_sql = 'SET @auxiliary_tmp_cursor = CURSOR LOCAL FOR ' + @SELSTMT + '; OPEN @auxiliary_tmp_cursor'
+		*/
+
+
+
+		SET @auxiliary_exec_param = '@auxiliary_tmp_cursor cursor OUTPUT'
+
+		EXECUTE sp_executesql @auxiliary_cursor_definition_sql, @auxiliary_exec_param, @QUERY_CV  OUTPUT
+
+		WHILE 1 = 1
+		
+			BEGIN
+
+				IF @U_METADATA = 'MODELS'
+					BEGIN
+
+						FETCH @QUERY_CV
+							 INTO 
+								@OWNER, 
+								@MODEL_ID, 
+								@MODEL_NAME, 
+								@TABLE_NAME, 
+								@COLUMN_NAME, 
+								@MODEL_TABLESPACE_NAME, 
+								@MODEL_TYPE, 
+								@INMEMORY
+
+						/*
+						*   SSMA warning messages:
+						*   O2SS0113: The value of @@FETCH_STATUS might be changed by previous FETCH operations on other cursors, if the cursors are used simultaneously.
+						*/
+
+						IF (@@FETCH_STATUS &lt;> 0)
+							BREAK
+
+						/* 
+						*   SSMA error messages:
+						*   O2SS0050: Conversion of identifier 'sys.odcivarchar2list(VARCHAR2, NUMBER, VARCHAR2, VARCHAR2, VARCHAR2, VARCHAR2, VARCHAR2, VARCHAR2)' is not supported.
+
+						SET @VLIST = SYS.ODCIVARCHAR2LIST(
+							@OWNER, 
+							@MODEL_ID, 
+							@MODEL_NAME, 
+							@TABLE_NAME, 
+							@COLUMN_NAME, 
+							@MODEL_TABLESPACE_NAME, 
+							@MODEL_TYPE, 
+							@INMEMORY)
+						*/
+
+
+
+					END
+				ELSE 
+					IF @U_METADATA = 'RULEBASES'
+						BEGIN
+
+							FETCH @QUERY_CV
+								 INTO @OWNER, @RULEBASE_NAME, @RULEBASE_VIEW_NAME, @STATUS
+
+							/*
+							*   SSMA warning messages:
+							*   O2SS0113: The value of @@FETCH_STATUS might be changed by previous FETCH operations on other cursors, if the cursors are used simultaneously.
+							*/
+
+							IF (@@FETCH_STATUS &lt;> 0)
+								BREAK
+
+							/* 
+							*   SSMA error messages:
+							*   O2SS0050: Conversion of identifier 'sys.odcivarchar2list(VARCHAR2, VARCHAR2, VARCHAR2, VARCHAR2)' is not supported.
+
+							SET @VLIST = SYS.ODCIVARCHAR2LIST(@OWNER, @RULEBASE_NAME, @RULEBASE_VIEW_NAME, @STATUS)
+							*/
+
+
+
+						END
+					ELSE 
+						IF @U_METADATA = 'ENTAILMENTS'
+							BEGIN
+
+								FETCH @QUERY_CV
+									 INTO 
+										@OWNER, 
+										@INDEX_NAME, 
+										@INDEX_VIEW_NAME, 
+										@STATUS, 
+										@MODEL_COUNT, 
+										@RULEBASE_COUNT
+
+								/*
+								*   SSMA warning messages:
+								*   O2SS0113: The value of @@FETCH_STATUS might be changed by previous FETCH operations on other cursors, if the cursors are used simultaneously.
+								*/
+
+								IF (@@FETCH_STATUS &lt;> 0)
+									BREAK
+
+								/* 
+								*   SSMA error messages:
+								*   O2SS0050: Conversion of identifier 'sys.odcivarchar2list(VARCHAR2, VARCHAR2, VARCHAR2, VARCHAR2, NUMBER, NUMBER)' is not supported.
+
+								SET @VLIST = SYS.ODCIVARCHAR2LIST(
+									@OWNER, 
+									@INDEX_NAME, 
+									@INDEX_VIEW_NAME, 
+									@STATUS, 
+									@MODEL_COUNT, 
+									@RULEBASE_COUNT)
+								*/
+
+
+
+							END
+						ELSE 
+							IF @U_METADATA = 'DATATYPE_INDEXES'
+								BEGIN
+
+									FETCH @QUERY_CV
+										 INTO 
+											@DATATYPE, 
+											@INDEX_NAME, 
+											@STATUS, 
+											@TABLESPACE_NAME, 
+											@FUNCIDX_STATUS
+
+									/*
+									*   SSMA warning messages:
+									*   O2SS0113: The value of @@FETCH_STATUS might be changed by previous FETCH operations on other cursors, if the cursors are used simultaneously.
+									*/
+
+									IF (@@FETCH_STATUS &lt;> 0)
+										BREAK
+
+									/* 
+									*   SSMA error messages:
+									*   O2SS0050: Conversion of identifier 'sys.odcivarchar2list(VARCHAR2, VARCHAR2, VARCHAR2, VARCHAR2, VARCHAR2)' is not supported.
+
+									SET @VLIST = SYS.ODCIVARCHAR2LIST(
+										@DATATYPE, 
+										@INDEX_NAME, 
+										@STATUS, 
+										@TABLESPACE_NAME, 
+										@FUNCIDX_STATUS)
+									*/
+
+
+
+								END
+							ELSE 
+								IF @U_METADATA = 'NETWORK_INDEXES'
+									BEGIN
+
+										FETCH @QUERY_CV
+											 INTO 
+												@NAME, 
+												@IDX_TYPE, 
+												@ID, 
+												@INDEX_CODE, 
+												@INDEX_NAME, 
+												@LAST_REFRESH, 
+												@STATUS, 
+												@TABLESPACE_NAME, 
+												@UNIQUENESS, 
+												@COMPRESSION, 
+												@PREFIX_LENGTH, 
+												@BLEVEL, 
+												@LEAF_BLOCKS, 
+												@NUM_ROWS, 
+												@DISTINCT_KEYS, 
+												@AVG_LEAF_BLOCKS_PER_KEY, 
+												@AVG_DATA_BLOCKS_PER_KEY, 
+												@CLUSTERING_FACTOR, 
+												@SAMPLE_SIZE, 
+												@LAST_ANALYZED
+
+										/*
+										*   SSMA warning messages:
+										*   O2SS0113: The value of @@FETCH_STATUS might be changed by previous FETCH operations on other cursors, if the cursors are used simultaneously.
+										*/
+
+										IF (@@FETCH_STATUS &lt;> 0)
+											BREAK
+
+										/* 
+										*   SSMA error messages:
+										*   O2SS0050: Conversion of identifier 'sys.odcivarchar2list(VARCHAR2, VARCHAR2, NUMBER, VARCHAR2, VARCHAR2, TIMESTAMP WITH TIME ZONE, VARCHAR2, VARCHAR2, VARCHAR2, VARCHAR2, NUMBER, NUMBER, NUMBER, NUMBER, NUMBER, NUMBER, NUMBER, NUMBER, NUMBER, DATE)' is not supported.
+
+										SET @VLIST = SYS.ODCIVARCHAR2LIST(
+											@NAME, 
+											@IDX_TYPE, 
+											@ID, 
+											@INDEX_CODE, 
+											@INDEX_NAME, 
+											@LAST_REFRESH, 
+											@STATUS, 
+											@TABLESPACE_NAME, 
+											@UNIQUENESS, 
+											@COMPRESSION, 
+											@PREFIX_LENGTH, 
+											@BLEVEL, 
+											@LEAF_BLOCKS, 
+											@NUM_ROWS, 
+											@DISTINCT_KEYS, 
+											@AVG_LEAF_BLOCKS_PER_KEY, 
+											@AVG_DATA_BLOCKS_PER_KEY, 
+											@CLUSTERING_FACTOR, 
+											@SAMPLE_SIZE, 
+											@LAST_ANALYZED)
+										*/
+
+
+
+									END
+								ELSE 
+									IF @U_METADATA = 'VIRTUAL_MODEL_INFO'
+										BEGIN
+
+											FETCH @QUERY_CV
+												 INTO 
+													@OWNER, 
+													@VIRTUAL_MODEL_NAME, 
+													@UNIQUE_VIEW_NAME, 
+													@DUPLICATE_VIEW_NAME, 
+													@STATUS, 
+													@MODEL_COUNT, 
+													@RULEBASE_COUNT, 
+													@RULES_INDEX_COUNT
+
+											/*
+											*   SSMA warning messages:
+											*   O2SS0113: The value of @@FETCH_STATUS might be changed by previous FETCH operations on other cursors, if the cursors are used simultaneously.
+											*/
+
+											IF (@@FETCH_STATUS &lt;> 0)
+												BREAK
+
+											/* 
+											*   SSMA error messages:
+											*   O2SS0050: Conversion of identifier 'sys.odcivarchar2list(VARCHAR2, VARCHAR2, VARCHAR2, VARCHAR2, VARCHAR2, NUMBER, NUMBER, NUMBER)' is not supported.
+
+											SET @VLIST = SYS.ODCIVARCHAR2LIST(
+												@OWNER, 
+												@VIRTUAL_MODEL_NAME, 
+												@UNIQUE_VIEW_NAME, 
+												@DUPLICATE_VIEW_NAME, 
+												@STATUS, 
+												@MODEL_COUNT, 
+												@RULEBASE_COUNT, 
+												@RULES_INDEX_COUNT)
+											*/
+
+
+
+										END
+									ELSE 
+										IF @U_METADATA = 'VIRTUAL_MODEL_DATASETS'
+											BEGIN
+
+												FETCH @QUERY_CV
+													 INTO @VIRTUAL_MODEL_NAME, @DATA_TYPE, @DATA_NAME
+
+												/*
+												*   SSMA warning messages:
+												*   O2SS0113: The value of @@FETCH_STATUS might be changed by previous FETCH operations on other cursors, if the cursors are used simultaneously.
+												*/
+
+												IF (@@FETCH_STATUS &lt;> 0)
+													BREAK
+
+												/* 
+												*   SSMA error messages:
+												*   O2SS0050: Conversion of identifier 'sys.odcivarchar2list(VARCHAR2, VARCHAR2, VARCHAR2)' is not supported.
+
+												SET @VLIST = SYS.ODCIVARCHAR2LIST(@VIRTUAL_MODEL_NAME, @DATA_TYPE, @DATA_NAME)
+												*/
+
+
+
+											END
+										ELSE 
+											IF @U_METADATA = 'ENTAILMENT_DATASETS'
+												BEGIN
+
+													FETCH @QUERY_CV
+														 INTO @INDEX_NAME, @DATA_TYPE, @DATA_NAME
+
+													/*
+													*   SSMA warning messages:
+													*   O2SS0113: The value of @@FETCH_STATUS might be changed by previous FETCH operations on other cursors, if the cursors are used simultaneously.
+													*/
+
+													IF (@@FETCH_STATUS &lt;> 0)
+														BREAK
+
+													/* 
+													*   SSMA error messages:
+													*   O2SS0050: Conversion of identifier 'sys.odcivarchar2list(VARCHAR2, VARCHAR2, VARCHAR2)' is not supported.
+
+													SET @VLIST = SYS.ODCIVARCHAR2LIST(@INDEX_NAME, @DATA_TYPE, @DATA_NAME)
+													*/
+
+
+
+												END
+											ELSE 
+												BEGIN
+
+													DECLARE
+														@db_raise_application_error_message$5 nvarchar(4000)
+
+													SET @db_raise_application_error_message$5 = N'ORA' + CAST(-20000 AS nvarchar) + N': ' + ('Unknown metadata type: ' + ISNULL(@METADATA_TYPE, ''))
+
+													RAISERROR(59998, 16, 1, @db_raise_application_error_message$5)
+
+												END
+
+				SET @CV_LIST = MOVIE_USER.GET_NETWORK_METADATA$FORMAT_CV_LIST(@CLIST = @CLIST, @VLIST = @VLIST, @OPTIONS = @OPTIONS)
+
+				/* 
+				*   SSMA error messages:
+				*   O2SS0002: The following SQL statement cannot be converted: 
+				*   
+				*   PIPE ROW(cv_list)
+
+				DECLARE
+					@db_null_statement int
+				*/
+
+
+
+			END
+
+	END
+GO
+*/
+
+
+CREATE FUNCTION MOVIE_USER.GET_NETWORK_METADATA 
+( 
+	@METADATA_TYPE varchar(max),
+	@OPTIONS varchar(max) = NULL,
+	@P_NETWORK_OWNER varchar(max) = NULL,
+	@P_NETWORK_NAME varchar(max) = NULL
+)
+RETURNS varchar(8000)
+AS 
+	BEGIN
+
+		DECLARE
+			@active_spid INT, 
+			@login_time DATETIME, 
+			@db_name NVARCHAR(128)
+
+		SET @active_spid = ssma_oracle.GET_ACTIVE_SPID()
+
+		SET @login_time = ssma_oracle.GET_ACTIVE_LOGIN_TIME()
+
+		SET @db_name = DB_NAME()
+
+		DECLARE
+			@return_value_argument varchar(8000)
+
+		/*
+		*   SSMA warning messages:
+		*   O2SS0452: "xp_ora2ms_exec2_ex" when called from within UDF cannot bind to outer transaction. It can lead to dead locks and losing transaction atomicity. Consider calling $impl procedure directly.
+		*/
+
+		EXECUTE master.dbo.xp_ora2ms_exec2_ex 
+			@active_spid, 
+			@login_time, 
+			@db_name, 
+			N'MOVIE_USER', 
+			N'GET_NETWORK_METADATA$IMPL', 
+			N'true', 
+			@METADATA_TYPE, 
+			@OPTIONS, 
+			@P_NETWORK_OWNER, 
+			@P_NETWORK_NAME, 
+			@return_value_argument  OUTPUT
+
+		RETURN @return_value_argument
+
+	END
+GO</pre></div></div><script>
+var sourceLanguage = 'sql';
+var sourceEditorSelections = [{start:55, end:81, guid:'bac204a6-82c9-480f-b9fc-bdcb7350bdc4', reflection:['10b1c60e-113c-42e8-bd58-34a9408e0202'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:83, end:116, guid:'cd2b87cc-1fca-42f2-9c10-41be15b77d1d', reflection:['a23da4e9-6bc9-47db-b25f-fe505ed2dee0'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:118, end:159, guid:'c4fae825-6f13-4ac9-b98b-115675f2ecfa', reflection:['74ef0793-b679-4912-9b0a-8879483b7c9f'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:161, end:201, guid:'970287cb-e74e-48d4-9065-ed3a94d42e55', reflection:['923dab06-36dd-41c7-b5b9-82e66c576ce3'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:241, end:290, guid:'194f1816-9126-48b9-a79b-58cbb25e40b7', reflection:['417862ed-45d3-44f5-ac7f-31d7fc68aea4'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:290, end:345, guid:'6e72a63c-f8eb-4c9a-acc8-d6b2fc5eaccf', reflection:['05e7736a-200b-4f6e-a2b1-e945c0e4fbce'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:345, end:377, guid:'aca5b042-4f5e-40f5-bb38-a3e45e167cd7', reflection:['cd7f8117-bc6b-4467-a16c-3a8458dfa7d0'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:377, end:402, guid:'742d4a0d-0ede-4495-9aab-d372a05f0d9b', reflection:['21284772-c389-49a2-809c-629493402d73'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:402, end:428, guid:'54d8e624-2417-445a-8097-fe33a2508f44', reflection:['8461d9db-ffb8-46ed-b815-1b155c934ac7'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:428, end:451, guid:'2495488e-cf31-4346-9ecc-a990199c4c35', reflection:['2fdb875a-3b9f-47aa-999c-5b21d8d6e365'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:451, end:481, guid:'fc8bd943-578c-4ecf-aa92-75b738f42c4f', reflection:['04ad013f-959f-40be-9953-6213d48a81dc'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:481, end:540, guid:'be23e316-d568-4119-804b-8661014af3d6', reflection:['533bf9db-9e7b-4533-939e-35e408b2baf3'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:540, end:595, guid:'bb41d0db-3a36-4f75-b69a-9c3a0de41fa5', reflection:['435f137a-3080-49d1-a943-38f33f10da30'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:595, end:650, guid:'5b68cdfa-1e76-42f3-9fe1-b8d2eb993350', reflection:['f135ce0d-68c0-42bf-95bf-1cc7265fc5d7'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:650, end:867, guid:'743db13b-0e02-4c1d-b83c-c55e3160c9d7', reflection:['6bf7ca63-50a0-48c6-ae33-73c5e8b3d38e'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:867, end:998, guid:'c19f0c45-2961-4637-95b0-acadb7a86046', reflection:['2de59ba2-4475-41e8-b4b3-1b349ce70081'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:998, end:1182, guid:'727feee6-3372-45c4-a149-60a42cd351fc', reflection:['5430f153-7d8e-4c7a-8ab9-8da6195259ec'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:1182, end:1355, guid:'538ef49a-643f-46d3-a64a-3fee98f39876', reflection:['082701fe-76d3-4182-8006-1d969017a51b'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:1355, end:1820, guid:'a8a4e3fa-b7a4-435c-9975-5aa838a6c034', reflection:['bc96ea2a-9c14-48ac-89a3-549fe17e72fc'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:1820, end:2072, guid:'370bf45b-de67-4470-b79f-8a91fbb3d3ca', reflection:['ba258f81-fd7e-482b-98e2-fe9af9b78672'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:2072, end:2206, guid:'b0cb0a74-d7f3-4c57-be6b-ff1d53643a0e', reflection:['cf2db765-a3de-4620-bcfd-5d4d2502e466'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:2206, end:2329, guid:'3c8a3c51-936f-41fc-a0c5-d2688a9ab5c5', reflection:['39f7b4aa-7b2a-4611-86bd-9922a9e229bb'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:2329, end:2352, guid:'ed0103aa-2c3f-4fa7-b25c-010f4970a639', reflection:['4ef68d70-774f-4656-b805-3aa66790bde0'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:2352, end:2371, guid:'a979f488-e22e-46ee-ac64-3f7abffd9367', reflection:['4fa73d0b-5635-4f6c-a772-c199621c95a2'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:2371, end:2399, guid:'1107b017-9abf-42d5-b46c-f08d77d2d670', reflection:['b6af6ed3-e008-4127-8e59-573185366c03'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:2399, end:2427, guid:'2be4aa44-245a-4196-a759-1aa3c71cbe88', reflection:['ea66004a-a7e8-473f-bda3-09560c9984f8'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:2427, end:2456, guid:'47855dd8-18a9-4872-b2b3-15877ceac044', reflection:['b67baf54-81dd-4b2d-94db-e20cde3e8b97'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:2456, end:2495, guid:'b2fb604b-4f27-47c9-a0a1-0f532738daea', reflection:['cfda190b-03f5-4f9d-b931-7fc034562401'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:2495, end:2522, guid:'d2817b6b-47e9-4842-a5b0-5231f012cd13', reflection:['274d1a9c-4203-42aa-9bd7-9b0640068794'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:2522, end:2546, guid:'007e1e08-dc56-42b1-9f93-6b38346ef6c8', reflection:['c5d1ca47-291d-437a-9d4f-10190cd0bb67'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:2546, end:2577, guid:'2496188e-1256-4f0a-a923-589a63d25ba7', reflection:['80adfcab-cfa1-4f7b-8d29-0c343509060c'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:2577, end:2613, guid:'78c43fd4-5d4b-4ba2-b863-c9aa0a329689', reflection:['bd848bbe-6f91-435c-ac97-d05c42ad67ae'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:2613, end:2636, guid:'afa7412e-d8d7-4476-8e56-a4a81b9f84a6', reflection:['1263d5e0-f193-47c7-bf51-1f4b733beb5c'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:2636, end:2664, guid:'33f11fc5-a7f3-4e8d-9527-17440f1e4710', reflection:['e1288e87-4ff4-4330-9be2-38b99e8771dd'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:2664, end:2697, guid:'0f3fc4fa-a34c-4728-8c71-50cb87c5ba58', reflection:['17c85bfe-5cb3-4299-91c2-b607fc219bca'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:2697, end:2719, guid:'d2d929df-8e84-4c2b-a011-a6a263251d2c', reflection:['4488f315-887b-45d1-89df-427a3ac684c8'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:2719, end:2744, guid:'ef68425a-2040-41f5-b61d-d84894a35d2c', reflection:['2834d1e7-b438-462d-ab4f-37358fcab6bf'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:2744, end:2769, guid:'d8bf162d-ea29-4769-a2cf-022420b0f631', reflection:['96582dea-4968-40db-aeb8-710ffaec6ca2'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:2769, end:2801, guid:'653ddf8d-f856-4fd3-8b0b-daeee38a6745', reflection:['50fa4b89-62f8-4c2f-b24d-239b90243342'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:2801, end:2831, guid:'413831ce-ebf8-4063-b28e-b7debb072fee', reflection:['ffe57935-a9e5-4db6-9d3b-167afe26f8d3'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:2831, end:2853, guid:'cc1a8278-ba64-4b77-a426-8db701a4adfc', reflection:['b6202923-c926-4668-9e7c-16b52ac934e8'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:2853, end:2878, guid:'4109a445-08ca-404b-9d0e-5eea72b8f620', reflection:['a29ea1af-7305-42a8-978c-f5db6c28f3fe'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:2878, end:2891, guid:'fcb18c97-43ca-403e-932f-a620ee407a9e', reflection:['97dacdb3-ccb7-4c07-bc6c-43fb0ed809e0'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:2891, end:2919, guid:'fe245c0d-ac14-43b9-8695-824d83fc880e', reflection:['66bcc928-7822-45d7-ab5d-fdb7791cb011'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:2919, end:2963, guid:'aecd9357-cbf9-4d86-87ba-bfb842f76013', reflection:['6ead00cb-99e1-44b6-8272-5462214f0d9c'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:2963, end:2989, guid:'6da13543-8c0a-40d6-b6fc-7aeb4f05f8fc', reflection:['2988eed1-0349-45d3-a432-e5eb2481ab0d'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:2989, end:3017, guid:'dfd5d501-f0b1-47dd-84e6-9ade8e852ae0', reflection:['8c6d5cc7-48a8-4325-83e0-85ffd3d3bc1c'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:3017, end:3041, guid:'220d04d2-b3d8-4e5e-bc64-6ee82c46b9df', reflection:['363720e4-8b12-4da7-a5f7-20234388a928'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:3041, end:3058, guid:'ce414ab4-edb8-4e05-9bb8-28f44bcb4cad', reflection:['c56c606c-4fd7-4eab-b799-7c4eaf1bd15a'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:3058, end:3080, guid:'3af98ef3-406c-425e-9ced-ead629246449', reflection:['6c9d29a9-bc82-46b0-8a08-bfc342817e2e'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:3080, end:3099, guid:'a523c56a-7caa-462f-869c-7b7a7abd0f9e', reflection:['bfba05f5-26db-401a-b729-4a4d919060cd'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:3099, end:3123, guid:'bb9f7419-4bd9-4135-870f-652527e9daf1', reflection:['9e548cc0-23f4-472e-9e64-61f69be06572'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:3123, end:3157, guid:'64cb5651-58e9-4ad0-8638-c95adcb64fc2', reflection:['e4ce05da-79e0-4173-ae52-1c5225b47610'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:3157, end:3191, guid:'4877280f-ffca-493c-8aa6-8a3bd93ee41c', reflection:['06a88bc4-8f4b-4539-8db8-5a2105d5952d'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:3191, end:3219, guid:'1025ed55-0800-48b2-9880-4faca089a7b7', reflection:['c279c439-f88d-4f8b-a3d0-f0402fa3b92d'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:3219, end:3241, guid:'edd301e0-0049-424c-a2a9-f81b6411af60', reflection:['51ed2972-0995-4ecd-a272-4dbda42ecdf0'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:3241, end:3263, guid:'4995f6c2-d5f9-4347-8f5a-953f86676025', reflection:['3adb25b6-71c9-4e33-95b6-a551b05ff6c3'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:3263, end:3299, guid:'cd081191-f63d-4fea-a691-43fe66b7a7c9', reflection:['098c1dbb-6381-4623-b101-2d3c6fd4b459'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:3299, end:3333, guid:'f4b65899-1794-45ff-a4fa-a593df5c294e', reflection:['b8332765-4534-46dc-9baf-074d9aea13f5'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:3333, end:3370, guid:'def3cd9a-c8ef-411b-ba20-25999a4e0012', reflection:['e5c02ae8-8abb-4a5e-998b-7d854091c2ae'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:3370, end:3398, guid:'d82bc0fd-ce87-40da-8f66-879612d915f4', reflection:['2cca4740-69c9-492c-b46a-9e049a54b59c'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:3398, end:3423, guid:'e701cf1c-6711-443a-be23-c5196316ceaa', reflection:['f599d506-c16e-4772-8e13-e37998c4bfbf'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:3423, end:3450, guid:'63fc55b5-82ad-4609-b960-2960241a8c44', reflection:['f0c2691d-7de6-487b-91e5-223d2c7200ea'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:4299, end:4801, guid:'95f4311b-93fc-4b70-a9cb-ea96d72d42ff', reflection:['fbb6929a-9cdc-41b7-aa52-913aadef2d81'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:4840, end:4920, guid:'f10eaa08-fa9f-41b6-b68b-068c845fbb39', reflection:['f89f2f0c-b2c3-4589-b00d-da64d2fb21f0'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:4802, end:4930, guid:'454ff909-47f8-41bd-9bb7-8a148bc4d375', reflection:['976ee0f9-0311-420e-be52-f8714d7afe87'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:4931, end:5422, guid:'a6017110-f7c0-4129-9974-5a6f29ebba05', reflection:['0d14647b-0c9e-4b8f-8951-31337b2ca923'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:5450, end:5530, guid:'64d6e6bc-36f5-46a8-af9c-bd866d2ba28e', reflection:['0f2eafe4-9d72-450e-bb74-06c571b60b1b'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:5423, end:5540, guid:'182c9dab-5614-4dcd-ac48-1e9902c38160', reflection:['433cc91b-4fd7-4f46-a6f6-ad39383c8189'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:5541, end:5565, guid:'dd7ba74b-b6ef-4021-9d5a-946b4b31865f', reflection:['710928c1-214f-48f6-98ed-86bb74638ff8'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:5608, end:5682, guid:'35784e7c-4e10-49aa-a2a8-6549a7785fd8', reflection:['bed08287-f040-4db8-978b-754da722e715'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:5767, end:5830, guid:'968a485b-d93d-4ff4-90c6-22da067e4d61', reflection:['b57bdf16-276f-4f14-b49a-2c4c9b9b58ab'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:5840, end:5953, guid:'83db37c1-5f12-41f0-b69e-40233e33f96d', reflection:['349857d8-d081-4317-8475-e665d0cef2ed'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:5725, end:5965, guid:'e15063e1-7dab-4ca6-837a-f31dab3f4eeb', reflection:['7fe5c8af-2232-4e6e-ba2b-3dd2dc21c4a1'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:6009, end:6117, guid:'8506d03d-0a5a-476f-a05c-8579d20ab5f0', reflection:['b2d8d0b2-4ee1-4f5c-979d-6cd1d64bd00e'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:5965, end:6117, guid:'e48a1dfe-1caf-4cff-b2c8-7a8ecdd1f31b', reflection:['d0678834-569f-4d0f-b41f-3edbdd6cab5f'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:5683, end:6128, guid:'e726a9d4-ad31-4868-81bf-3a6360919d22', reflection:['0055adfa-e34f-4b4e-a576-ffa3651ac01f'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:5566, end:6139, guid:'4d8d03e9-710a-4e66-996e-9803c4002c9e', reflection:['9c5abdf1-4d23-46db-aca7-875577297625'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:6140, end:6233, guid:'a331730a-cfef-49b0-889c-97283ad08b43', reflection:['28d73c1e-ad4e-46ed-9921-3abe6ed9e632'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:6234, end:6266, guid:'ea96dae9-27fb-49c9-a407-977d523c58d3', reflection:['4638f828-9096-44bb-9c29-459b450493eb','a321f2a0-31e5-41b7-bb1b-8d7c9ffca860','930cc570-5a25-415f-b124-3cf9429fa3a9','b8cef5a3-51a5-4132-b24e-1f39da6e8aa5','1e6b17b6-deed-4073-915f-e0477a6584f8','ad08334c-1825-4978-8c15-97ed6a50777f'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:6310, end:6494, guid:'dbbfa1d0-dff5-43c7-a58f-c555c7cf8d1b', reflection:['5d767f4f-0e6b-4fdc-a5a9-80e249d53976'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:6495, end:6530, guid:'f75ec952-6621-4a9c-aee2-c2e7d6c818b4', reflection:['204af868-7886-4092-b799-a35c81b16262'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:6531, end:6713, guid:'5242d27d-7ea1-42c7-9f5d-5871f54096a3', reflection:['79f7be4f-577a-46e5-b72a-503a0a8a3fe0'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:6755, end:6834, guid:'1fda2d57-384b-4737-8afb-d3409e1fd61b', reflection:['db267c25-b43a-4acc-9fc9-7d56670f2a37'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:6835, end:6870, guid:'77fff868-6269-469d-af1a-9432f1b791d6', reflection:['bb3a013a-49be-403f-be42-c180a1e3c53f'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:6871, end:6956, guid:'63adb144-1b42-4a0f-9029-7f62b04179d1', reflection:['66ba5549-bc01-4868-bff7-66a1a445981c'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:6714, end:6957, guid:'f2f9dae4-8fea-4f57-8664-585de7504f7e', reflection:['97c58a90-a88a-41ac-9cbc-b81b0643c4b4'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:7000, end:7144, guid:'84cd03c9-402e-49de-9c57-ea3251360851', reflection:['6c5d0927-bec9-4d59-93eb-b359d872337e'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:7145, end:7180, guid:'bf4b7990-54e4-4960-bbff-32410acf6f63', reflection:['051ae450-7f6b-439c-a169-360545fa0e66'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:7181, end:7325, guid:'ead494d9-8cc4-4606-8826-39f41c2895e6', reflection:['56d9ec87-f1c2-4ba1-b20f-ebfd65a9d9f0'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:6957, end:7326, guid:'7d3826e9-d0c1-433d-ad90-4c36fa5529a3', reflection:['8f872be6-bb66-4e53-9e88-6bb7a55b022d'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:7374, end:7501, guid:'2e1765c9-e420-4e28-a11f-7e1ca0b8093c', reflection:['d24982af-b75e-47d5-b156-2e71d31c1935'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:7502, end:7537, guid:'cc8e0e66-2be1-4584-971c-9cb3c24285ab', reflection:['c1ed0231-9dd9-4b8d-b17d-01bc1ce88b80'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:7538, end:7666, guid:'1efa8d9e-8f09-4641-a740-d03fc2c34e0d', reflection:['c917bdb7-d4b8-44c3-b05b-e7b999ae3d0d'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:7326, end:7667, guid:'f3d89fa5-2f68-4c2a-9105-ceeb0e8a8cf3', reflection:['590b31f6-2858-4868-ac12-839058d46aed'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:7714, end:8149, guid:'74dedd2e-9d19-47b2-bb8a-ecfb81f87c49', reflection:['d79ba410-6638-4b7d-b654-20d286991143'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:8150, end:8185, guid:'d90c3529-3088-4eea-a998-86aa21b93c0a', reflection:['db3f3eca-d373-4364-ba3a-a3bc402097b0'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:8186, end:8607, guid:'01a126c3-2c4f-4647-a1d7-e7b16c85a325', reflection:['cb320b84-171a-4af7-b409-a0f67618aaf2'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:7667, end:8608, guid:'2428ec7e-957c-4ef5-8b04-0d3d4716b85a', reflection:['7b40be4e-0f41-4bbc-84ac-8bdd2c27be3d'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:8658, end:8865, guid:'4ac5aea2-3451-42f8-93a8-6ce448ec6d2b', reflection:['1bb37ebd-1840-436a-a72b-17fdb2b4a3b0'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:8866, end:8901, guid:'51d4bc81-251a-41e2-918e-476cba8d18ea', reflection:['b31ed4df-ce5c-40b5-887e-516d008dd272'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:8902, end:9107, guid:'26c89f52-f847-4872-88bf-07ce4b159cca', reflection:['5b34daf6-4738-4850-80f7-c2d931498108'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:8608, end:9108, guid:'839b8697-2453-484d-a4ad-919726746c96', reflection:['da88f0f6-8445-4fa2-8dc1-d365d670547d'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:9162, end:9233, guid:'b4161a9a-8b48-4fe3-927d-a070cf3bc740', reflection:['0ae4eb37-0c31-44e8-87be-1dac29f6f5da'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:9234, end:9269, guid:'85dad6a9-62a0-4a0c-a3a0-74f8d23ba43e', reflection:['9d583e97-39d4-4582-a916-80db26358341'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:9270, end:9347, guid:'da4dfc94-9520-4e18-be5c-1f4674a9ede9', reflection:['1001abdf-760c-490e-b626-5f93440ec6d9'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:9108, end:9348, guid:'35449149-4681-4016-9500-af67416b309c', reflection:['0d22237d-8675-4e57-9772-a5d1aae6b996'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:9399, end:9462, guid:'e3bc4ab1-d2ce-4920-87be-30377fc5b6d2', reflection:['15f9ed44-c6eb-4b9e-850b-0bb1716b3ec7'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:9463, end:9498, guid:'87c36f36-ed07-4e44-acee-3a3bc4ebb9e1', reflection:['53a7c96e-47cc-457d-90df-4dc6f13e1195'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:9499, end:9568, guid:'53c790bc-c8d9-4912-a75e-12ffa0b0d593', reflection:['a0b0555a-efb3-4ab6-9f9a-c77179fc729a'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:9348, end:9569, guid:'13a08e62-2310-4724-a0c0-b6a14cfa79db', reflection:['d87e2dc1-9d4f-4d9e-a8d9-e4c8e8de3156'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:9578, end:9659, guid:'160bf06f-cd09-4d55-ba68-e5fd2b6149ba', reflection:['f4d63576-d7c6-45c8-9114-61409bc123ba'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:6275, end:9670, guid:'cf3b2a6a-ca9a-4f1c-bdda-026d359b2a37', reflection:['15c6be37-9707-43d6-894e-14244c9b847b'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:9670, end:9723, guid:'c1f9beaa-6f1c-4e16-b329-3b3d4047dcf4', reflection:['1b7d90d0-ebdc-4459-9174-b22ea2746caf'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:9723, end:9745, guid:'90a067f4-e53e-4547-a541-32f19356a085', reflection:['6e95d8a7-13fe-48fc-b1b3-c54e0ff9d631'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:6267, end:9757, guid:'ff7c2c12-9e70-4526-8cf5-4a771035b545', reflection:['43b18c16-b13a-42c9-a511-4e4ff9691a30'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:0, end:9785, guid:'a60fed44-0999-4489-930a-0d5dd7c939fb', reflection:['170174bb-deb8-4bc8-bb62-c3a52ff788ad'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]}];
+var targetLanguage = 'sql';
+var targetEditorSelections = [{start:154, end:183, guid:'10b1c60e-113c-42e8-bd58-34a9408e0202', reflection:['bac204a6-82c9-480f-b9fc-bdcb7350bdc4'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:184, end:214, guid:'a23da4e9-6bc9-47db-b25f-fe505ed2dee0', reflection:['cd2b87cc-1fca-42f2-9c10-41be15b77d1d'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:215, end:253, guid:'74ef0793-b679-4912-9b0a-8879483b7c9f', reflection:['c4fae825-6f13-4ac9-b98b-115675f2ecfa'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:254, end:291, guid:'923dab06-36dd-41c7-b5b9-82e66c576ce3', reflection:['970287cb-e74e-48d4-9065-ed3a94d42e55'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:360, end:399, guid:'417862ed-45d3-44f5-ac7f-31d7fc68aea4', reflection:['194f1816-9126-48b9-a79b-58cbb25e40b7'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:429, end:586, guid:'c4f8035c-6c9b-4079-a4a5-5fe983267d61', reflection:[], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:['O2SS0050']},{start:401, end:586, guid:'05e7736a-200b-4f6e-a2b1-e945c0e4fbce', reflection:['6e72a63c-f8eb-4c9a-acc8-d6b2fc5eaccf'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:588, end:620, guid:'cd7f8117-bc6b-4467-a16c-3a8458dfa7d0', reflection:['aca5b042-4f5e-40f5-bb38-a3e45e167cd7'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:622, end:647, guid:'21284772-c389-49a2-809c-629493402d73', reflection:['742d4a0d-0ede-4495-9aab-d372a05f0d9b'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:679, end:699, guid:'8461d9db-ffb8-46ed-b815-1b155c934ac7', reflection:['54d8e624-2417-445a-8097-fe33a2508f44'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:701, end:724, guid:'2fdb875a-3b9f-47aa-999c-5b21d8d6e365', reflection:['2495488e-cf31-4346-9ecc-a990199c4c35'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:726, end:756, guid:'04ad013f-959f-40be-9953-6213d48a81dc', reflection:['fc8bd943-578c-4ecf-aa92-75b738f42c4f'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:758, end:994, guid:'533bf9db-9e7b-4533-939e-35e408b2baf3', reflection:['be23e316-d568-4119-804b-8661014af3d6'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:['O2SS0474']},{start:996, end:1228, guid:'435f137a-3080-49d1-a943-38f33f10da30', reflection:['bb41d0db-3a36-4f75-b69a-9c3a0de41fa5'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:['O2SS0474']},{start:1230, end:1285, guid:'f135ce0d-68c0-42bf-95bf-1cc7265fc5d7', reflection:['5b68cdfa-1e76-42f3-9fe1-b8d2eb993350'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:1502, end:1858, guid:'6a468999-808c-4320-a62e-b4648a8897b3', reflection:[], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:['O2SS0050']},{start:1287, end:1858, guid:'6bf7ca63-50a0-48c6-ae33-73c5e8b3d38e', reflection:['743db13b-0e02-4c1d-b83c-c55e3160c9d7'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:['O2SS0474']},{start:2078, end:2313, guid:'371104bc-a9f2-44fd-8551-446d8bc7f55d', reflection:[], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:['O2SS0050']},{start:1860, end:2313, guid:'2de59ba2-4475-41e8-b4b3-1b349ce70081', reflection:['c19f0c45-2961-4637-95b0-acadb7a86046'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:['O2SS0474']},{start:2535, end:2839, guid:'ed20ff16-b1d7-40e5-970e-2f359529c1af', reflection:[], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:['O2SS0050']},{start:2315, end:2839, guid:'5430f153-7d8e-4c7a-8ab9-8da6195259ec', reflection:['727feee6-3372-45c4-a149-60a42cd351fc'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:['O2SS0474']},{start:3066, end:3347, guid:'89079f83-434d-4271-b306-9fbc81d9601a', reflection:[], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:['O2SS0050']},{start:2841, end:3347, guid:'082701fe-76d3-4182-8006-1d969017a51b', reflection:['538ef49a-643f-46d3-a64a-3fee98f39876'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:['O2SS0474']},{start:3573, end:4252, guid:'0b6807d1-a5f0-4368-a0d3-64667c92329b', reflection:[], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:['O2SS0050']},{start:3349, end:4252, guid:'bc96ea2a-9c14-48ac-89a3-549fe17e72fc', reflection:['a8a4e3fa-b7a4-435c-9975-5aa838a6c034'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:['O2SS0474']},{start:4481, end:4860, guid:'f31f4c3f-799a-4d83-9b8c-d682ae58878b', reflection:[], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:['O2SS0050']},{start:4254, end:4860, guid:'ba258f81-fd7e-482b-98e2-fe9af9b78672', reflection:['370bf45b-de67-4470-b79f-8a91fbb3d3ca'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:['O2SS0474']},{start:5093, end:5312, guid:'efa3ad7c-0b83-457b-9481-1d1d8a70a5c3', reflection:[], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:['O2SS0050']},{start:4862, end:5312, guid:'cf2db765-a3de-4620-bcfd-5d4d2502e466', reflection:['b0cb0a74-d7f3-4c57-be6b-ff1d53643a0e'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:['O2SS0474']},{start:5542, end:5753, guid:'e1b4bfc3-d7d9-4af0-87cb-1a49dc68be06', reflection:[], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:['O2SS0050']},{start:5314, end:5753, guid:'39f7b4aa-7b2a-4611-86bd-9922a9e229bb', reflection:['3c8a3c51-936f-41fc-a0c5-d2688a9ab5c5'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:['O2SS0474']},{start:5755, end:5778, guid:'4ef68d70-774f-4656-b805-3aa66790bde0', reflection:['ed0103aa-2c3f-4fa7-b25c-010f4970a639'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:5780, end:5916, guid:'4fa73d0b-5635-4f6c-a772-c199621c95a2', reflection:['a979f488-e22e-46ee-ac64-3f7abffd9367'], convmessInfoIds:[], convmessWarningIds:['O2SS0356'], convmessErrorIds:[]},{start:5918, end:5946, guid:'b6af6ed3-e008-4127-8e59-573185366c03', reflection:['1107b017-9abf-42d5-b46c-f08d77d2d670'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:5948, end:5976, guid:'ea66004a-a7e8-473f-bda3-09560c9984f8', reflection:['2be4aa44-245a-4196-a759-1aa3c71cbe88'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:5978, end:6007, guid:'b67baf54-81dd-4b2d-94db-e20cde3e8b97', reflection:['47855dd8-18a9-4872-b2b3-15877ceac044'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:6009, end:6048, guid:'cfda190b-03f5-4f9d-b931-7fc034562401', reflection:['b2fb604b-4f27-47c9-a0a1-0f532738daea'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:6050, end:6077, guid:'274d1a9c-4203-42aa-9bd7-9b0640068794', reflection:['d2817b6b-47e9-4842-a5b0-5231f012cd13'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:6079, end:6103, guid:'c5d1ca47-291d-437a-9d4f-10190cd0bb67', reflection:['007e1e08-dc56-42b1-9f93-6b38346ef6c8'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:6105, end:6136, guid:'80adfcab-cfa1-4f7b-8d29-0c343509060c', reflection:['2496188e-1256-4f0a-a923-589a63d25ba7'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:6138, end:6174, guid:'bd848bbe-6f91-435c-ac97-d05c42ad67ae', reflection:['78c43fd4-5d4b-4ba2-b863-c9aa0a329689'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:6176, end:6199, guid:'1263d5e0-f193-47c7-bf51-1f4b733beb5c', reflection:['afa7412e-d8d7-4476-8e56-a4a81b9f84a6'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:6201, end:6229, guid:'e1288e87-4ff4-4330-9be2-38b99e8771dd', reflection:['33f11fc5-a7f3-4e8d-9527-17440f1e4710'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:6231, end:6264, guid:'17c85bfe-5cb3-4299-91c2-b607fc219bca', reflection:['0f3fc4fa-a34c-4728-8c71-50cb87c5ba58'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:6266, end:6405, guid:'4488f315-887b-45d1-89df-427a3ac684c8', reflection:['d2d929df-8e84-4c2b-a011-a6a263251d2c'], convmessInfoIds:[], convmessWarningIds:['O2SS0356'], convmessErrorIds:[]},{start:6407, end:6549, guid:'2834d1e7-b438-462d-ab4f-37358fcab6bf', reflection:['ef68425a-2040-41f5-b61d-d84894a35d2c'], convmessInfoIds:[], convmessWarningIds:['O2SS0356'], convmessErrorIds:[]},{start:6551, end:6576, guid:'96582dea-4968-40db-aeb8-710ffaec6ca2', reflection:['d8bf162d-ea29-4769-a2cf-022420b0f631'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:6578, end:6610, guid:'50fa4b89-62f8-4c2f-b24d-239b90243342', reflection:['653ddf8d-f856-4fd3-8b0b-daeee38a6745'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:6612, end:6642, guid:'ffe57935-a9e5-4db6-9d3b-167afe26f8d3', reflection:['413831ce-ebf8-4063-b28e-b7debb072fee'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:6644, end:6666, guid:'b6202923-c926-4668-9e7c-16b52ac934e8', reflection:['cc1a8278-ba64-4b77-a426-8db701a4adfc'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:6668, end:6693, guid:'a29ea1af-7305-42a8-978c-f5db6c28f3fe', reflection:['4109a445-08ca-404b-9d0e-5eea72b8f620'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:6695, end:6825, guid:'97dacdb3-ccb7-4c07-bc6c-43fb0ed809e0', reflection:['fcb18c97-43ca-403e-932f-a620ee407a9e'], convmessInfoIds:[], convmessWarningIds:['O2SS0356'], convmessErrorIds:[]},{start:6827, end:6855, guid:'66bcc928-7822-45d7-ab5d-fdb7791cb011', reflection:['fe245c0d-ac14-43b9-8695-824d83fc880e'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:6857, end:6892, guid:'6ead00cb-99e1-44b6-8272-5462214f0d9c', reflection:['aecd9357-cbf9-4d86-87ba-bfb842f76013'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:6894, end:6920, guid:'2988eed1-0349-45d3-a432-e5eb2481ab0d', reflection:['6da13543-8c0a-40d6-b6fc-7aeb4f05f8fc'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:6922, end:6950, guid:'8c6d5cc7-48a8-4325-83e0-85ffd3d3bc1c', reflection:['dfd5d501-f0b1-47dd-84e6-9ade8e852ae0'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:6952, end:7093, guid:'363720e4-8b12-4da7-a5f7-20234388a928', reflection:['220d04d2-b3d8-4e5e-bc64-6ee82c46b9df'], convmessInfoIds:[], convmessWarningIds:['O2SS0356'], convmessErrorIds:[]},{start:7095, end:7229, guid:'c56c606c-4fd7-4eab-b799-7c4eaf1bd15a', reflection:['ce414ab4-edb8-4e05-9bb8-28f44bcb4cad'], convmessInfoIds:[], convmessWarningIds:['O2SS0356'], convmessErrorIds:[]},{start:7231, end:7370, guid:'6c9d29a9-bc82-46b0-8a08-bfc342817e2e', reflection:['3af98ef3-406c-425e-9ced-ead629246449'], convmessInfoIds:[], convmessWarningIds:['O2SS0356'], convmessErrorIds:[]},{start:7372, end:7508, guid:'bfba05f5-26db-401a-b729-4a4d919060cd', reflection:['a523c56a-7caa-462f-869c-7b7a7abd0f9e'], convmessInfoIds:[], convmessWarningIds:['O2SS0356'], convmessErrorIds:[]},{start:7510, end:7651, guid:'9e548cc0-23f4-472e-9e64-61f69be06572', reflection:['bb9f7419-4bd9-4135-870f-652527e9daf1'], convmessInfoIds:[], convmessWarningIds:['O2SS0356'], convmessErrorIds:[]},{start:7653, end:7804, guid:'e4ce05da-79e0-4173-ae52-1c5225b47610', reflection:['64cb5651-58e9-4ad0-8638-c95adcb64fc2'], convmessInfoIds:[], convmessWarningIds:['O2SS0356'], convmessErrorIds:[]},{start:7806, end:7957, guid:'06a88bc4-8f4b-4539-8db8-5a2105d5952d', reflection:['4877280f-ffca-493c-8aa6-8a3bd93ee41c'], convmessInfoIds:[], convmessWarningIds:['O2SS0356'], convmessErrorIds:[]},{start:7959, end:8104, guid:'c279c439-f88d-4f8b-a3d0-f0402fa3b92d', reflection:['1025ed55-0800-48b2-9880-4faca089a7b7'], convmessInfoIds:[], convmessWarningIds:['O2SS0356'], convmessErrorIds:[]},{start:8106, end:8245, guid:'51ed2972-0995-4ecd-a272-4dbda42ecdf0', reflection:['edd301e0-0049-424c-a2a9-f81b6411af60'], convmessInfoIds:[], convmessWarningIds:['O2SS0356'], convmessErrorIds:[]},{start:8247, end:8278, guid:'3adb25b6-71c9-4e33-95b6-a551b05ff6c3', reflection:['4995f6c2-d5f9-4347-8f5a-953f86676025'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:8280, end:8316, guid:'098c1dbb-6381-4623-b101-2d3c6fd4b459', reflection:['cd081191-f63d-4fea-a691-43fe66b7a7c9'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:8318, end:8352, guid:'b8332765-4534-46dc-9baf-074d9aea13f5', reflection:['f4b65899-1794-45ff-a4fa-a593df5c294e'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:8354, end:8391, guid:'e5c02ae8-8abb-4a5e-998b-7d854091c2ae', reflection:['def3cd9a-c8ef-411b-ba20-25999a4e0012'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:8393, end:8538, guid:'2cca4740-69c9-492c-b46a-9e049a54b59c', reflection:['d82bc0fd-ce87-40da-8f66-879612d915f4'], convmessInfoIds:[], convmessWarningIds:['O2SS0356'], convmessErrorIds:[]},{start:8540, end:8565, guid:'f599d506-c16e-4772-8e13-e37998c4bfbf', reflection:['e701cf1c-6711-443a-be23-c5196316ceaa'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:8567, end:8594, guid:'f0c2691d-7de6-487b-91e5-223d2c7200ea', reflection:['63fc55b5-82ad-4609-b960-2960241a8c44'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:8595, end:9087, guid:'fbb6929a-9cdc-41b7-aa52-913aadef2d81', reflection:['95f4311b-93fc-4b70-a9cb-ea96d72d42ff'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:9131, end:9199, guid:'f89f2f0c-b2c3-4589-b00d-da64d2fb21f0', reflection:['f10eaa08-fa9f-41b6-b68b-068c845fbb39'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:9088, end:9421, guid:'976ee0f9-0311-420e-be52-f8714d7afe87', reflection:['454ff909-47f8-41bd-9bb7-8a148bc4d375'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:9422, end:9911, guid:'0d14647b-0c9e-4b8f-8951-31337b2ca923', reflection:['a6017110-f7c0-4129-9974-5a6f29ebba05'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:9944, end:10014, guid:'0f2eafe4-9d72-450e-bb74-06c571b60b1b', reflection:['64d6e6bc-36f5-46a8-af9c-bd866d2ba28e'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:9912, end:10240, guid:'433cc91b-4fd7-4f46-a6f6-ad39383c8189', reflection:['182c9dab-5614-4dcd-ac48-1e9902c38160'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:10241, end:10268, guid:'710928c1-214f-48f6-98ed-86bb74638ff8', reflection:['dd7ba74b-b6ef-4021-9d5a-946b4b31865f'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:10315, end:10646, guid:'bed08287-f040-4db8-978b-754da722e715', reflection:['35784e7c-4e10-49aa-a2a8-6549a7785fd8'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:['O2SS0560']},{start:10723, end:10813, guid:'b57bdf16-276f-4f14-b49a-2c4c9b9b58ab', reflection:['968a485b-d93d-4ff4-90c6-22da067e4d61'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:10837, end:10913, guid:'349857d8-d081-4317-8475-e665d0cef2ed', reflection:['83db37c1-5f12-41f0-b69e-40233e33f96d'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:10685, end:11179, guid:'7fe5c8af-2232-4e6e-ba2b-3dd2dc21c4a1', reflection:['e15063e1-7dab-4ca6-837a-f31dab3f4eeb'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:11253, end:11331, guid:'b2d8d0b2-4ee1-4f5c-979d-6cd1d64bd00e', reflection:['8506d03d-0a5a-476f-a05c-8579d20ab5f0'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:11200, end:11596, guid:'d0678834-569f-4d0f-b41f-3edbdd6cab5f', reflection:['e48a1dfe-1caf-4cff-b2c8-7a8ecdd1f31b'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:10647, end:11605, guid:'0055adfa-e34f-4b4e-a576-ffa3651ac01f', reflection:['e726a9d4-ad31-4868-81bf-3a6360919d22'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:10269, end:11613, guid:'9c5abdf1-4d23-46db-aca7-875577297625', reflection:['4d8d03e9-710a-4e66-996e-9803c4002c9e'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:11614, end:11992, guid:'28d73c1e-ad4e-46ed-9921-3abe6ed9e632', reflection:['a331730a-cfef-49b0-889c-97283ad08b43'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:['O2SS0560']},{start:12025, end:12085, guid:'4638f828-9096-44bb-9c29-459b450493eb', reflection:['ea96dae9-27fb-49c9-a407-977d523c58d3'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:12086, end:12135, guid:'a321f2a0-31e5-41b7-bb1b-8d7c9ffca860', reflection:['ea96dae9-27fb-49c9-a407-977d523c58d3'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:12136, end:12212, guid:'930cc570-5a25-415f-b124-3cf9429fa3a9', reflection:['ea96dae9-27fb-49c9-a407-977d523c58d3'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:12213, end:12498, guid:'b8cef5a3-51a5-4132-b24e-1f39da6e8aa5', reflection:['ea96dae9-27fb-49c9-a407-977d523c58d3'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:['O2SS0157']},{start:12499, end:12567, guid:'ad08334c-1825-4978-8c15-97ed6a50777f', reflection:['ea96dae9-27fb-49c9-a407-977d523c58d3'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:12568, end:12667, guid:'1e6b17b6-deed-4073-915f-e0477a6584f8', reflection:['ea96dae9-27fb-49c9-a407-977d523c58d3'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:12737, end:12950, guid:'5d767f4f-0e6b-4fdc-a5a9-80e249d53976', reflection:['dbbfa1d0-dff5-43c7-a58f-c555c7cf8d1b'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:12951, end:13199, guid:'204af868-7886-4092-b799-a35c81b16262', reflection:['f75ec952-6621-4a9c-aee2-c2e7d6c818b4'], convmessInfoIds:[], convmessWarningIds:['O2SS0113'], convmessErrorIds:[]},{start:13200, end:13628, guid:'79f7be4f-577a-46e5-b72a-503a0a8a3fe0', reflection:['5242d27d-7ea1-42c7-9f5d-5871f54096a3'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:['O2SS0050']},{start:13695, end:13785, guid:'db267c25-b43a-4acc-9fc9-7d56670f2a37', reflection:['1fda2d57-384b-4737-8afb-d3409e1fd61b'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:13786, end:14040, guid:'bb3a013a-49be-403f-be42-c180a1e3c53f', reflection:['77fff868-6269-469d-af1a-9432f1b791d6'], convmessInfoIds:[], convmessWarningIds:['O2SS0113'], convmessErrorIds:[]},{start:14041, end:14319, guid:'66ba5549-bc01-4868-bff7-66a1a445981c', reflection:['63adb144-1b42-4a0f-9029-7f62b04179d1'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:['O2SS0050']},{start:14392, end:14575, guid:'6c5d0927-bec9-4d59-93eb-b359d872337e', reflection:['84cd03c9-402e-49de-9c57-ea3251360851'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:14576, end:14836, guid:'051ae450-7f6b-439c-a169-360545fa0e66', reflection:['bf4b7990-54e4-4960-bbff-32410acf6f63'], convmessInfoIds:[], convmessWarningIds:['O2SS0113'], convmessErrorIds:[]},{start:14837, end:15221, guid:'56d9ec87-f1c2-4ba1-b20f-ebfd65a9d9f0', reflection:['ead494d9-8cc4-4606-8826-39f41c2895e6'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:['O2SS0050']},{start:15303, end:15471, guid:'d24982af-b75e-47d5-b156-2e71d31c1935', reflection:['2e1765c9-e420-4e28-a11f-7e1ca0b8093c'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:15472, end:15738, guid:'c1ed0231-9dd9-4b8d-b17d-01bc1ce88b80', reflection:['cc8e0e66-2be1-4584-971c-9cb3c24285ab'], convmessInfoIds:[], convmessWarningIds:['O2SS0113'], convmessErrorIds:[]},{start:15739, end:16106, guid:'c917bdb7-d4b8-44c3-b05b-e7b999ae3d0d', reflection:['1efa8d9e-8f09-4641-a740-d03fc2c34e0d'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:['O2SS0050']},{start:16191, end:16779, guid:'d79ba410-6638-4b7d-b654-20d286991143', reflection:['74dedd2e-9d19-47b2-bb8a-ecfb81f87c49'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:16780, end:17052, guid:'db3f3eca-d373-4364-ba3a-a3bc402097b0', reflection:['d90c3529-3088-4eea-a998-86aa21b93c0a'], convmessInfoIds:[], convmessWarningIds:['O2SS0113'], convmessErrorIds:[]},{start:17053, end:17970, guid:'cb320b84-171a-4af7-b409-a0f67618aaf2', reflection:['01a126c3-2c4f-4647-a1d7-e7b16c85a325'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:['O2SS0050']},{start:18062, end:18348, guid:'1bb37ebd-1840-436a-a72b-17fdb2b4a3b0', reflection:['4ac5aea2-3451-42f8-93a8-6ce448ec6d2b'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:18349, end:18627, guid:'b31ed4df-ce5c-40b5-887e-516d008dd272', reflection:['51d4bc81-251a-41e2-918e-476cba8d18ea'], convmessInfoIds:[], convmessWarningIds:['O2SS0113'], convmessErrorIds:[]},{start:18628, end:19140, guid:'5b34daf6-4738-4850-80f7-c2d931498108', reflection:['26c89f52-f847-4872-88bf-07ce4b159cca'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:['O2SS0050']},{start:19240, end:19331, guid:'0ae4eb37-0c31-44e8-87be-1dac29f6f5da', reflection:['b4161a9a-8b48-4fe3-927d-a070cf3bc740'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:19332, end:19616, guid:'9d583e97-39d4-4582-a916-80db26358341', reflection:['85dad6a9-62a0-4a0c-a3a0-74f8d23ba43e'], convmessInfoIds:[], convmessWarningIds:['O2SS0113'], convmessErrorIds:[]},{start:19617, end:19901, guid:'1001abdf-760c-490e-b626-5f93440ec6d9', reflection:['da4dfc94-9520-4e18-be5c-1f4674a9ede9'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:['O2SS0050']},{start:20002, end:20087, guid:'15f9ed44-c6eb-4b9e-850b-0bb1716b3ec7', reflection:['e3bc4ab1-d2ce-4920-87be-30377fc5b6d2'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:20088, end:20378, guid:'53a7c96e-47cc-457d-90df-4dc6f13e1195', reflection:['87c36f36-ed07-4e44-acee-3a3bc4ebb9e1'], convmessInfoIds:[], convmessWarningIds:['O2SS0113'], convmessErrorIds:[]},{start:20379, end:20660, guid:'a0b0555a-efb3-4ab6-9f9a-c77179fc729a', reflection:['53c790bc-c8d9-4912-a75e-12ffa0b0d593'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:['O2SS0050']},{start:20713, end:20801, guid:'f4d63576-d7c6-45c8-9114-61409bc123ba', reflection:['160bf06f-cd09-4d55-ba68-e5fd2b6149ba'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:19933, end:21054, guid:'d87e2dc1-9d4f-4d9e-a8d9-e4c8e8de3156', reflection:['13a08e62-2310-4724-a0c0-b6a14cfa79db'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:19170, end:21054, guid:'0d22237d-8675-4e57-9772-a5d1aae6b996', reflection:['35449149-4681-4016-9500-af67416b309c'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:17998, end:21054, guid:'da88f0f6-8445-4fa2-8dc1-d365d670547d', reflection:['839b8697-2453-484d-a4ad-919726746c96'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:16132, end:21054, guid:'7b40be4e-0f41-4bbc-84ac-8bdd2c27be3d', reflection:['2428ec7e-957c-4ef5-8b04-0d3d4716b85a'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:15245, end:21054, guid:'590b31f6-2858-4868-ac12-839058d46aed', reflection:['f3d89fa5-2f68-4c2a-9105-ceeb0e8a8cf3'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:14341, end:21054, guid:'8f872be6-bb66-4e53-9e88-6bb7a55b022d', reflection:['7d3826e9-d0c1-433d-ad90-4c36fa5529a3'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:13648, end:21054, guid:'97c58a90-a88a-41ac-9cbc-b81b0643c4b4', reflection:['f2f9dae4-8fea-4f57-8664-585de7504f7e'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:12695, end:21054, guid:'15c6be37-9707-43d6-894e-14244c9b847b', reflection:['cf3b2a6a-ca9a-4f1c-bdda-026d359b2a37'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:21055, end:21176, guid:'1b7d90d0-ebdc-4459-9174-b22ea2746caf', reflection:['c1f9beaa-6f1c-4e16-b329-3b3d4047dcf4'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:21177, end:21367, guid:'6e95d8a7-13fe-48fc-b1b3-c54e0ff9d631', reflection:['90a067f4-e53e-4547-a541-32f19356a085'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:['O2SS0002']},{start:12668, end:21375, guid:'43b18c16-b13a-42c9-a511-4e4ff9691a30', reflection:['ff7c2c12-9e70-4526-8cf5-4a771035b545'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:98, end:21381, guid:'170174bb-deb8-4bc8-bb62-c3a52ff788ad', reflection:['a60fed44-0999-4489-930a-0d5dd7c939fb'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:0, end:21389, guid:'4b5385ac-f21c-432c-8509-b98983e7d37c', reflection:[], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:['O2SS0001']},{start:21441, end:21470, guid:'71cc6748-319e-4cd8-a488-9d9af4f6d79d', reflection:['bac204a6-82c9-480f-b9fc-bdcb7350bdc4'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:21471, end:21501, guid:'eeff64a1-2c2e-4720-8d73-5b671d9bd440', reflection:['cd2b87cc-1fca-42f2-9c10-41be15b77d1d'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:21502, end:21540, guid:'61776602-147a-4093-a631-f34a576f53a7', reflection:['c4fae825-6f13-4ac9-b98b-115675f2ecfa'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:21541, end:21578, guid:'9fa245b0-c044-42f1-8c20-bb30c077c020', reflection:['970287cb-e74e-48d4-9065-ed3a94d42e55'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:21887, end:22396, guid:'f4c78dbb-801b-4509-baca-31570b50bdf4', reflection:[], convmessInfoIds:[], convmessWarningIds:['O2SS0452'], convmessErrorIds:[]}];
+</script><script src='../js/code.js'></script></body></html>

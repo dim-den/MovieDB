@@ -1,0 +1,15 @@
+CREATE OR REPLACE procedure UpdateActor (
+p_ID in ACTOR.ID%type,
+p_NAME in ACTOR.NAME%type,
+p_SURNAME in ACTOR.SURNAME%type,
+p_COUNTRY in ACTOR.COUNTRY%type,
+p_BDAY in ACTOR.BDAY%type
+) is
+begin
+    update ACTOR set    
+    NAME = p_NAME,
+    SURNAME = p_SURNAME,
+    COUNTRY = p_COUNTRY,
+    BDAY = p_BDAY
+    where ID = p_ID;
+end;

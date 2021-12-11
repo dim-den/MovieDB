@@ -1,0 +1,86 @@
+<html>
+<head>
+<meta http-equiv='Content-Type' content='text/html; charset=UTF-8'>
+<meta http-equiv='X-UA-Compatible' content='IE=edge' />
+<link rel=stylesheet data-name='vs/editor/editor.main' href='../monaco/editor.main.css' type='text/css'>
+<link rel='stylesheet' type='text/css' href='../css/style.css'></link>
+<script type='text/javascript' src='../js/functions.js'></script>
+<script async='async' type='text/javascript' src='../monaco/sql.js'></script>
+<script src='../monaco/loader.js'></script>
+<script src='../monaco/editor.main.nls.js'></script>
+<script src='../monaco/editor.main.js'></script>
+</head>
+<body class='sql-body' id='scrollable-body'>
+<div id='left-side' class='left-side'><div class='panel'>
+<span class='panel-title source'>&nbsp;Source</span>
+<img tabindex='0' aria-label='Previous problem' role='button' class='nav-button nav-button-disabled' id='source_previous_problem' src='../img/previous_problem.gif' onclick='handleProblemButtonClick(-1, true)' title='Previous problem' />
+<img tabindex='0' aria-label='Next problem' role='button' class='nav-button nav-button-disabled' id='source_next_problem' src='../img/next_problem.gif' onclick='handleProblemButtonClick(1, true)' title='Next problem' />
+<img tabindex='0' aria-label='Previous bookmark' role='button' class='nav-button nav-button-disabled' id='source_previous_bookmark' src='../img/previous_bookmark.gif' onclick='handleBookmarkButtonClick(-1, true)' title='Previous bookmark' />
+<img tabindex='0' aria-label='Next bookmark' role='button' class='nav-button nav-button-disabled' id='source_next_bookmark' src='../img/next_bookmark.gif' onclick='handleBookmarkButtonClick(1, true)' title='Next bookmark' />
+<img tabindex='0' aria-label='Clear bookmarks' role='button' class='nav-button nav-button-disabled' id='source_clear_bookmarks' src='../img/clear_bookmarks.gif' onclick='handleBookmarkButtonClick(0, true)' title='Clear bookmarks' />
+<a class='raw-source-link' target='_blank' aria-label='Raw source' href='./src.sql.txt');'>Raw source</a>
+</div>
+<div class='editor-container'>
+<div id='monaco-left-side'></div><pre id='monaco-left-side-sql'>
+CREATE 
+	MATERIALIZED VIEW MD_REGEX_CATALOG_MVIEW 
+		REFRESH FORCE ON DEMAND 
+		AS 
+			SELECT 
+				PROJECT_ID, 
+				CONNECTION_ID, 
+				CONNECTION_NAME, 
+				CATALOG_ID, 
+				CATALOG_NAME, 
+				ITEM, 
+				SUM(VALUE) "VALUE"
+			FROM MD_REGEX_SCHEMA_MVIEW
+				GROUP BY 
+					PROJECT_ID, 
+					CONNECTION_ID, 
+					CONNECTION_NAME, 
+					CATALOG_ID, 
+					CATALOG_NAME, 
+					ITEM;
+</pre></div></div><div id='resize-bar' class='resize-bar'></div><div id='right-side' class='right-side'><div class='panel'>
+<span class='panel-title target'>&nbsp;Target</span>
+<img tabindex='0' aria-label='Previous problem' role='button' class='nav-button nav-button-disabled' id='target_previous_problem' src='../img/previous_problem.gif' onclick='handleProblemButtonClick(-1, false)' title='Previous problem' />
+<img tabindex='0' aria-label='Next problem' role='button' class='nav-button nav-button-disabled' id='target_next_problem' src='../img/next_problem.gif' onclick='handleProblemButtonClick(1, false)' title='Next problem' />
+<img tabindex='0' aria-label='Previous bookmark' role='button' class='nav-button nav-button-disabled' id='target_previous_bookmark' src='../img/previous_bookmark.gif' onclick='handleBookmarkButtonClick(-1, false)' title='Previous bookmark' />
+<img tabindex='0' aria-label='Next bookmark' role='button' class='nav-button nav-button-disabled' id='target_next_bookmark' src='../img/next_bookmark.gif' onclick='handleBookmarkButtonClick(1, false)' title='Next bookmark' />
+<img tabindex='0' aria-label='Clear bookmarks' role='button' class='nav-button nav-button-disabled' id='target_clear_bookmarks' src='../img/clear_bookmarks.gif' onclick='handleBookmarkButtonClick(0, false)' title='Clear bookmarks' />
+</div>
+<div class='editor-container'>
+<div id='monaco-right-side'></div><pre id='monaco-right-side-sql'>
+/* 
+*   SSMA error messages:
+*   O2SS0502: Materialized view with other view can't be converted (restriction)
+
+CREATE VIEW MOVIE_USER.MD_REGEX_CATALOG_MVIEW
+WITH SCHEMABINDING 
+AS 
+	SELECT 
+		MD_REGEX_SCHEMA_MVIEW.PROJECT_ID, 
+		MD_REGEX_SCHEMA_MVIEW.CONNECTION_ID, 
+		MD_REGEX_SCHEMA_MVIEW.CONNECTION_NAME, 
+		MD_REGEX_SCHEMA_MVIEW.CATALOG_ID, 
+		MD_REGEX_SCHEMA_MVIEW.CATALOG_NAME, 
+		MD_REGEX_SCHEMA_MVIEW.ITEM, 
+		sum(MD_REGEX_SCHEMA_MVIEW.VALUE) AS VALUE
+	FROM MOVIE_USER.MD_REGEX_SCHEMA_MVIEW
+	GROUP BY 
+		MD_REGEX_SCHEMA_MVIEW.PROJECT_ID, 
+		MD_REGEX_SCHEMA_MVIEW.CONNECTION_ID, 
+		MD_REGEX_SCHEMA_MVIEW.CONNECTION_NAME, 
+		MD_REGEX_SCHEMA_MVIEW.CATALOG_ID, 
+		MD_REGEX_SCHEMA_MVIEW.CATALOG_NAME, 
+		MD_REGEX_SCHEMA_MVIEW.ITEM
+*/
+
+
+GO</pre></div></div><script>
+var sourceLanguage = 'sql';
+var sourceEditorSelections = [{start:84, end:378, guid:'4d44f0d8-fa08-4f82-a208-268ad079acb5', reflection:['93d24d10-287e-476b-8cfc-7251afa383d1'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:0, end:379, guid:'027eef41-64d0-47ce-a0f7-a6bbe7b1c115', reflection:['78d413af-5580-478a-9d54-6de3c8a9c35d'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]}];
+var targetLanguage = 'sql';
+var targetEditorSelections = [{start:181, end:734, guid:'93d24d10-287e-476b-8cfc-7251afa383d1', reflection:['4d44f0d8-fa08-4f82-a208-268ad079acb5'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:0, end:739, guid:'78d413af-5580-478a-9d54-6de3c8a9c35d', reflection:['027eef41-64d0-47ce-a0f7-a6bbe7b1c115'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:['O2SS0502']}];
+</script><script src='../js/code.js'></script></body></html>

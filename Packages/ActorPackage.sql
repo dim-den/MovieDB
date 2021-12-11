@@ -1,0 +1,41 @@
+create or replace package body ActorPackage as
+
+-- Insert
+procedure AddActor (
+p_NAME in ACTOR.NAME%type,
+p_SURNAME in ACTOR.SURNAME%type,
+p_COUNTRY in ACTOR.COUNTRY%type,
+p_BDAY in ACTOR.BDAY%type
+) is
+begin
+    insert into ACTOR(NAME,SURNAME,COUNTRY,BDAY) values 
+    (p_NAME,p_SURNAME,p_COUNTRY,p_BDAY);
+end;
+
+-- Update
+procedure UpdateActor (
+p_ID in ACTOR.ID%type,
+p_NAME in ACTOR.NAME%type,
+p_SURNAME in ACTOR.SURNAME%type,
+p_COUNTRY in ACTOR.COUNTRY%type,
+p_BDAY in ACTOR.BDAY%type
+) is
+begin
+    update ACTOR set    
+    NAME = p_NAME,
+    SURNAME = p_SURNAME,
+    COUNTRY = p_COUNTRY,
+    BDAY = p_BDAY
+    where ID = p_ID;
+end;
+
+-- Delete
+procedure DeleteActor (
+p_ID in ACTOR.ID%type
+) is
+begin
+    delete from ACTOR
+    where ID = p_ID;
+end;
+
+end ActorPackage;

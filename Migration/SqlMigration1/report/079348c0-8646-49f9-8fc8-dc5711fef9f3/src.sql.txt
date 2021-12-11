@@ -1,0 +1,7 @@
+CREATE OR REPLACE procedure DeleteActor (
+p_ID in ACTOR.ID%type
+) is
+begin
+    delete from ACTOR
+    where ID = p_ID;
+end;

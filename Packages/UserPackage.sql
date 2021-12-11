@@ -1,0 +1,42 @@
+create or replace package body UserPackage as
+
+-- Insert
+procedure AddUser (
+p_EMAIL in USERS.EMAIL%type,
+p_USERNAME in USERS.USERNAME%type,
+p_PASSWORD_HASH in USERS.PASSWORD_HASH%type,
+p_ROLE in USERS.ROLE%type
+) is
+not_valid_role exception;
+begin
+    insert into USERS(EMAIL,USERNAME,PASSWORD_HASH,ROLE) values 
+    (p_EMAIL,p_USERNAME,p_PASSWORD_HASH,p_ROLE);
+end;
+
+-- Update
+procedure UpdateUser (
+p_ID in USERS.ID%type,
+p_EMAIL in USERS.EMAIL%type,
+p_USERNAME in USERS.USERNAME%type,
+p_PASSWORD_HASH in USERS.PASSWORD_HASH%type,
+p_ROLE in USERS.ROLE%type
+) is
+begin
+    update USERS set
+    EMAIL = p_EMAIL,
+    USERNAME = p_USERNAME,
+    PASSWORD_HASH = p_PASSWORD_HASH,
+    ROLE = p_ROLE   
+    where ID = p_ID;
+end;
+
+-- Delete
+procedure DeleteUser (
+p_ID in USERS.ID%type
+) is
+begin
+    delete from USERS
+    where ID = p_ID;
+end;
+
+end UserPackage;

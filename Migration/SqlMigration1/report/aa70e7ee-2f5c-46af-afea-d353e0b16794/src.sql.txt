@@ -1,0 +1,14 @@
+CREATE OR REPLACE procedure GenerateFilms (rows_count number)
+is
+begin
+for k in 1..rows_count
+loop
+    FilmPackage.AddFilm(DBMS_RANDOM.string('a',100), 
+                        DBMS_RANDOM.string('a',10), 
+                        DBMS_RANDOM.string('a',10), 
+                        DBMS_RANDOM.string('a',10),
+                        floor(dbms_random.value(100000, 50000000)),
+                        floor(dbms_random.value(100000, 100000000)),
+                        add_months(SYSDATE, -12 * floor(dbms_random.value(10, 40))) + DBMS_RANDOM.value(0,366));
+end loop;
+end;

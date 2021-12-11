@@ -1,0 +1,10 @@
+CREATE OR REPLACE procedure AddActor (
+p_NAME in ACTOR.NAME%type,
+p_SURNAME in ACTOR.SURNAME%type,
+p_COUNTRY in ACTOR.COUNTRY%type,
+p_BDAY in ACTOR.BDAY%type
+) is
+begin
+    insert into ACTOR(NAME,SURNAME,COUNTRY,BDAY) values 
+    (p_NAME,p_SURNAME,p_COUNTRY,p_BDAY);
+end;

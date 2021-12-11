@@ -1,0 +1,7 @@
+CREATE OR REPLACE procedure DeleteGenre (
+p_ID in Genre.ID%type
+) is
+begin
+    delete from Genre
+    where ID = p_ID;
+end;

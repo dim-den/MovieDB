@@ -1,0 +1,7 @@
+CREATE OR REPLACE procedure DeleteFilmReview (
+p_ID  FILM_REVIEW.ID%type
+) is
+begin
+    delete from FILM_REVIEW
+    where ID = p_ID;
+end;

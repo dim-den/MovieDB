@@ -1,0 +1,11 @@
+CREATE OR REPLACE procedure GenerateActors (rows_count number)
+is
+begin
+for k in 1..rows_count
+loop
+    ActorPackage.AddActor(DBMS_RANDOM.string('a',10), 
+                          DBMS_RANDOM.string('a',10), 
+                          DBMS_RANDOM.string('a',10), 
+                          add_months(SYSDATE, -12 * floor(dbms_random.value(10, 40))) + DBMS_RANDOM.value(0,366));
+end loop;
+end;

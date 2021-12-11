@@ -1,0 +1,218 @@
+<html>
+<head>
+<meta http-equiv='Content-Type' content='text/html; charset=UTF-8'>
+<meta http-equiv='X-UA-Compatible' content='IE=edge' />
+<link rel=stylesheet data-name='vs/editor/editor.main' href='../monaco/editor.main.css' type='text/css'>
+<link rel='stylesheet' type='text/css' href='../css/style.css'></link>
+<script type='text/javascript' src='../js/functions.js'></script>
+<script async='async' type='text/javascript' src='../monaco/sql.js'></script>
+<script src='../monaco/loader.js'></script>
+<script src='../monaco/editor.main.nls.js'></script>
+<script src='../monaco/editor.main.js'></script>
+</head>
+<body class='sql-body' id='scrollable-body'>
+<div id='left-side' class='left-side'><div class='panel'>
+<span class='panel-title source'>&nbsp;Source</span>
+<img tabindex='0' aria-label='Previous problem' role='button' class='nav-button nav-button-disabled' id='source_previous_problem' src='../img/previous_problem.gif' onclick='handleProblemButtonClick(-1, true)' title='Previous problem' />
+<img tabindex='0' aria-label='Next problem' role='button' class='nav-button nav-button-disabled' id='source_next_problem' src='../img/next_problem.gif' onclick='handleProblemButtonClick(1, true)' title='Next problem' />
+<img tabindex='0' aria-label='Previous bookmark' role='button' class='nav-button nav-button-disabled' id='source_previous_bookmark' src='../img/previous_bookmark.gif' onclick='handleBookmarkButtonClick(-1, true)' title='Previous bookmark' />
+<img tabindex='0' aria-label='Next bookmark' role='button' class='nav-button nav-button-disabled' id='source_next_bookmark' src='../img/next_bookmark.gif' onclick='handleBookmarkButtonClick(1, true)' title='Next bookmark' />
+<img tabindex='0' aria-label='Clear bookmarks' role='button' class='nav-button nav-button-disabled' id='source_clear_bookmarks' src='../img/clear_bookmarks.gif' onclick='handleBookmarkButtonClick(0, true)' title='Clear bookmarks' />
+<a class='raw-source-link' target='_blank' aria-label='Raw source' href='./src.sql.txt');'>Raw source</a>
+</div>
+<div class='editor-container'>
+<div id='monaco-left-side'></div><pre id='monaco-left-side-sql'>
+CREATE OR REPLACE 
+	PROCEDURE ExportFilmGenres
+	IS
+	
+		l_file UTL_FILE.file_type;/*для дескриптора*/
+		l_file_name VARCHAR2(60) := 'FilmGenres.xml';/*имя файла*/
+		CURSOR all_entities
+			IS 
+				SELECT *
+				FROM FILM_GENRES;
+		one_entity xmltype;/*одна запись в xml*/
+		sup FILM_GENRES%ROWTYPE;/*для курсора*/
+		sup_string varchar2(1024);/*для записи в файл*/
+	BEGIN 
+
+		l_file := UTL_FILE.fopen('EXPORT_DIR', l_file_name, 'w');
+
+		UTL_FILE.put_line(l_file, '&lt;?xml version= "1.0" ?>');
+
+		UTL_FILE.put_line(l_file, '&lt;FilmGenres>');
+
+		OPEN all_entities;
+
+		FETCH all_entities
+			INTO sup;
+
+		WHILE all_entities%FOUND LOOP 
+			SELECT XMLElement("FilmGenre", XMLElement("id", sup.ID), XMLElement("film_id", sup.film_id), XMLElement("genre_id", sup.genre_id))
+			INTO one_entity
+			FROM dual;
+			sup_string := one_entity.getStringVal();
+			UTL_FILE.put_line(l_file, sup_string);
+			FETCH all_entities
+				INTO sup;
+		END LOOP;
+
+		CLOSE all_entities;
+
+		UTL_FILE.put_line(l_file, '&lt;/FilmGenres>');
+
+		UTL_FILE.fclose(l_file);
+
+	END ExportFilmGenres;
+</pre></div></div><div id='resize-bar' class='resize-bar'></div><div id='right-side' class='right-side'><div class='panel'>
+<span class='panel-title target'>&nbsp;Target</span>
+<img tabindex='0' aria-label='Previous problem' role='button' class='nav-button nav-button-disabled' id='target_previous_problem' src='../img/previous_problem.gif' onclick='handleProblemButtonClick(-1, false)' title='Previous problem' />
+<img tabindex='0' aria-label='Next problem' role='button' class='nav-button nav-button-disabled' id='target_next_problem' src='../img/next_problem.gif' onclick='handleProblemButtonClick(1, false)' title='Next problem' />
+<img tabindex='0' aria-label='Previous bookmark' role='button' class='nav-button nav-button-disabled' id='target_previous_bookmark' src='../img/previous_bookmark.gif' onclick='handleBookmarkButtonClick(-1, false)' title='Previous bookmark' />
+<img tabindex='0' aria-label='Next bookmark' role='button' class='nav-button nav-button-disabled' id='target_next_bookmark' src='../img/next_bookmark.gif' onclick='handleBookmarkButtonClick(1, false)' title='Next bookmark' />
+<img tabindex='0' aria-label='Clear bookmarks' role='button' class='nav-button nav-button-disabled' id='target_clear_bookmarks' src='../img/clear_bookmarks.gif' onclick='handleBookmarkButtonClick(0, false)' title='Clear bookmarks' />
+</div>
+<div class='editor-container'>
+<div id='monaco-right-side'></div><pre id='monaco-right-side-sql'>
+CREATE PROCEDURE MOVIE_USER.DATAEXPORTPACKAGE$EXPORTFILMGENRES  
+AS 
+	BEGIN
+
+		EXECUTE ssma_oracle.db_check_init_package 'MOVIE_USER', 'DATAEXPORTPACKAGE'
+
+		DECLARE
+			/* 
+			*   SSMA error messages:
+			*   O2SS0005: The source datatype 'UTL_FILE.file_type' was not recognized.
+			*/
+
+			@L_FILE varchar(8000)/*для дескриптора*/, 
+			@L_FILE_NAME varchar(60) = 'FilmGenres.xml'/*имя файла*/, 
+			@ONE_ENTITY xml/*одна запись в xml*/
+
+		DECLARE
+			@SUP$ID numeric(19, 0), 
+			@SUP$FILM_ID numeric(19, 0), 
+			@SUP$GENRE_ID numeric(19, 0), 
+			@SUP_STRING varchar(1024)/*для записи в файл*//*для курсора*/
+
+		/* 
+		*   SSMA error messages:
+		*   O2SS0560: Identifier UTL_FILE.fopen cannot be converted because it was not resolved.
+		*   This may happen because system package that defines the identifier was excluded from loading in Project Settings.
+
+		SET @L_FILE = UTL_FILE.FOPEN
+		*/
+
+
+
+		/* 
+		*   SSMA error messages:
+		*   O2SS0560: Identifier UTL_FILE.put_line cannot be converted because it was not resolved.
+		*   This may happen because system package that defines the identifier was excluded from loading in Project Settings.
+
+		EXECUTE UTL_FILE.PUT_LINE
+		*/
+
+
+
+		/* 
+		*   SSMA error messages:
+		*   O2SS0560: Identifier UTL_FILE.put_line cannot be converted because it was not resolved.
+		*   This may happen because system package that defines the identifier was excluded from loading in Project Settings.
+
+		EXECUTE UTL_FILE.PUT_LINE
+		*/
+
+
+
+		DECLARE
+			 ALL_ENTITIES CURSOR LOCAL FOR 
+				SELECT FILM_GENRES.ID, FILM_GENRES.FILM_ID, FILM_GENRES.GENRE_ID
+				FROM MOVIE_USER.FILM_GENRES
+
+		OPEN ALL_ENTITIES
+
+		FETCH ALL_ENTITIES
+			 INTO @SUP$ID, @SUP$FILM_ID, @SUP$GENRE_ID
+
+		/*
+		*   SSMA warning messages:
+		*   O2SS0113: The value of @@FETCH_STATUS might be changed by previous FETCH operations on other cursors, if the cursors are used simultaneously.
+		*/
+
+		WHILE @@FETCH_STATUS = 0
+		
+			BEGIN
+
+				/* 
+				*   SSMA error messages:
+				*   O2SS0556: Identifier XMLElement cannot be converted because it was not resolved.
+				*   This may happen because referenced object is missing from the database.
+				*   It is recommended to fix and recompile all invalid objects in Oracle before attempting a conversion.
+				*
+
+				SELECT @ONE_ENTITY = XMLELEMENT
+				*/
+
+
+
+				/* 
+				*   SSMA error messages:
+				*   O2SS0556: Identifier one_entity.getStringVal cannot be converted because it was not resolved.
+				*   This may happen because referenced object is missing from the database.
+				*   It is recommended to fix and recompile all invalid objects in Oracle before attempting a conversion.
+				*
+
+				SET @SUP_STRING = ONE_ENTITY.GETSTRINGVAL
+				*/
+
+
+
+				/* 
+				*   SSMA error messages:
+				*   O2SS0560: Identifier UTL_FILE.put_line cannot be converted because it was not resolved.
+				*   This may happen because system package that defines the identifier was excluded from loading in Project Settings.
+
+				EXECUTE UTL_FILE.PUT_LINE
+				*/
+
+
+
+				FETCH ALL_ENTITIES
+					 INTO @SUP$ID, @SUP$FILM_ID, @SUP$GENRE_ID
+
+			END
+
+		CLOSE ALL_ENTITIES
+
+		DEALLOCATE ALL_ENTITIES
+
+		/* 
+		*   SSMA error messages:
+		*   O2SS0560: Identifier UTL_FILE.put_line cannot be converted because it was not resolved.
+		*   This may happen because system package that defines the identifier was excluded from loading in Project Settings.
+
+		EXECUTE UTL_FILE.PUT_LINE
+		*/
+
+
+
+		/* 
+		*   SSMA error messages:
+		*   O2SS0560: Identifier UTL_FILE.fclose cannot be converted because it was not resolved.
+		*   This may happen because system package that defines the identifier was excluded from loading in Project Settings.
+
+		EXECUTE UTL_FILE.FCLOSE
+		*/
+
+
+
+	END
+GO</pre></div></div><script>
+var sourceLanguage = 'sql';
+var sourceEditorSelections = [{start:53, end:101, guid:'e17c65a2-6f74-4f8d-8be2-f21a18741981', reflection:['1bd6c186-5770-46f9-b1c9-869c6f22705f'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:101, end:162, guid:'db66033f-803f-4a34-b246-00a20b7763f8', reflection:['a4433b75-89e8-4ecb-b399-cb77d2d99997'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:191, end:225, guid:'e69cebee-f505-4346-9b5e-0dc82a0920c8', reflection:['ed212b74-5333-4194-8179-ee3f5cf50523'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:226, end:269, guid:'ad5b434d-e367-4d2a-b081-8727770a1f26', reflection:['7f0a8fe4-d590-49d3-b0ba-275187fe895d'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:269, end:311, guid:'4dc30db6-3379-4275-bdd0-a7dba07a0398', reflection:['81570c2e-a5e8-4249-8dbf-f3bde431205d'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:311, end:361, guid:'0ad41440-f12d-407c-98ed-6d70e59e0c35', reflection:['d1672df3-1019-43a7-be36-9393f5abc9e1'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:370, end:430, guid:'7a37708d-1efc-44ce-920f-221079f4b72b', reflection:['90e60700-eaee-406b-b926-e8075abf3f7e'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:431, end:487, guid:'1196bd64-2d16-4b7c-9d6a-3c43c936784e', reflection:['acb50ad1-c3a0-4fd5-bfcf-8d75ce02a9f6'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:488, end:533, guid:'ffa702e7-8715-4f22-8476-c650e6cd0d04', reflection:['56bd3e0f-801b-4017-9a37-de31d098b676'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:534, end:555, guid:'1bd1c309-d37c-4e3e-b4ee-b4979fddc80d', reflection:['ed7d7b63-f03b-4024-ae9e-063727f8f75b','50910fcd-050c-4942-ba4b-9f4864c03a3d'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:556, end:590, guid:'483da1ff-b80f-4479-bf20-e537d70d5fd0', reflection:['3caaf48b-4c4f-4bd4-becc-3afa7caaf257'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:624, end:791, guid:'f0e40e30-e777-48a9-bfb5-df2858e2e048', reflection:['1b70bda2-8506-44e9-93be-320ddf30e1fe'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:791, end:835, guid:'952cdf93-66c5-4d9d-9e99-6e45534e2697', reflection:['a9093688-8d63-4c30-ab90-753e6a2e1234'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:835, end:877, guid:'4068ad8a-d6af-4537-943e-f1d8bc880757', reflection:['8d75200c-400d-4280-bf2b-0fb785af5670'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:877, end:913, guid:'5ef2da47-97c3-4462-9093-56be70ec351c', reflection:['47812ab9-94c8-4092-902e-6779eb520e13'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:591, end:925, guid:'c24b51f9-57dd-4309-aebd-0cd05a19eea5', reflection:['bc06126a-2b86-49ae-b040-75cca9d85e05'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:926, end:948, guid:'d2f3b112-c65c-44fb-9343-b7c43bd2223e', reflection:['ef005bd0-2a98-4da9-bf16-5888e9b8ecf5','2c7a169b-bc04-469d-9065-1546be318d5a'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:949, end:995, guid:'60e3d8a3-e8be-4312-a2fe-a359fecb7849', reflection:['4176b6cb-a50d-466a-8a4f-6f036ccf4c38'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:996, end:1023, guid:'db720444-6a0a-4423-ba24-392a1ac87286', reflection:['259610e8-71d6-4f99-9962-dc06a9fb555d'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:0, end:1047, guid:'2a16237f-48f8-4b5a-ae13-d6838e66ed6c', reflection:['a8c0d6e7-1fdd-49b6-a38b-63c4e6b6bf95'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]}];
+var targetLanguage = 'sql';
+var targetEditorSelections = [{start:166, end:330, guid:'1bd6c186-5770-46f9-b1c9-869c6f22705f', reflection:['e17c65a2-6f74-4f8d-8be2-f21a18741981'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:['O2SS0005']},{start:332, end:392, guid:'a4433b75-89e8-4ecb-b399-cb77d2d99997', reflection:['db66033f-803f-4a34-b246-00a20b7763f8'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:394, end:434, guid:'7f0a8fe4-d590-49d3-b0ba-275187fe895d', reflection:['ad5b434d-e367-4d2a-b081-8727770a1f26'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:540, end:590, guid:'d1672df3-1019-43a7-be36-9393f5abc9e1', reflection:['0ad41440-f12d-407c-98ed-6d70e59e0c35'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:435, end:605, guid:'81570c2e-a5e8-4249-8dbf-f3bde431205d', reflection:['4dc30db6-3379-4275-bdd0-a7dba07a0398'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:606, end:889, guid:'90e60700-eaee-406b-b926-e8075abf3f7e', reflection:['7a37708d-1efc-44ce-920f-221079f4b72b'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:['O2SS0560']},{start:890, end:1173, guid:'acb50ad1-c3a0-4fd5-bfcf-8d75ce02a9f6', reflection:['1196bd64-2d16-4b7c-9d6a-3c43c936784e'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:['O2SS0560']},{start:1174, end:1457, guid:'56bd3e0f-801b-4017-9a37-de31d098b676', reflection:['ffa702e7-8715-4f22-8476-c650e6cd0d04'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:['O2SS0560']},{start:1503, end:1604, guid:'ed212b74-5333-4194-8179-ee3f5cf50523', reflection:['e69cebee-f505-4346-9b5e-0dc82a0920c8'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:1458, end:1604, guid:'ed7d7b63-f03b-4024-ae9e-063727f8f75b', reflection:['1bd1c309-d37c-4e3e-b4ee-b4979fddc80d'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:1605, end:1625, guid:'50910fcd-050c-4942-ba4b-9f4864c03a3d', reflection:['1bd1c309-d37c-4e3e-b4ee-b4979fddc80d'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:1626, end:1693, guid:'3caaf48b-4c4f-4bd4-becc-3afa7caaf257', reflection:['483da1ff-b80f-4479-bf20-e537d70d5fd0'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:1922, end:2289, guid:'1b70bda2-8506-44e9-93be-320ddf30e1fe', reflection:['f0e40e30-e777-48a9-bfb5-df2858e2e048'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:['O2SS0556']},{start:2290, end:2680, guid:'a9093688-8d63-4c30-ab90-753e6a2e1234', reflection:['952cdf93-66c5-4d9d-9e99-6e45534e2697'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:['O2SS0556']},{start:2681, end:2976, guid:'8d75200c-400d-4280-bf2b-0fb785af5670', reflection:['4068ad8a-d6af-4537-943e-f1d8bc880757'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:['O2SS0560']},{start:2977, end:3048, guid:'47812ab9-94c8-4092-902e-6779eb520e13', reflection:['5ef2da47-97c3-4462-9093-56be70ec351c'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:1694, end:3056, guid:'bc06126a-2b86-49ae-b040-75cca9d85e05', reflection:['c24b51f9-57dd-4309-aebd-0cd05a19eea5'], convmessInfoIds:[], convmessWarningIds:['O2SS0113'], convmessErrorIds:[]},{start:3057, end:3078, guid:'ef005bd0-2a98-4da9-bf16-5888e9b8ecf5', reflection:['d2f3b112-c65c-44fb-9343-b7c43bd2223e'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:3079, end:3105, guid:'2c7a169b-bc04-469d-9065-1546be318d5a', reflection:['d2f3b112-c65c-44fb-9343-b7c43bd2223e'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:3106, end:3389, guid:'4176b6cb-a50d-466a-8a4f-6f036ccf4c38', reflection:['60e3d8a3-e8be-4312-a2fe-a359fecb7849'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:['O2SS0560']},{start:3390, end:3669, guid:'259610e8-71d6-4f99-9962-dc06a9fb555d', reflection:['db720444-6a0a-4423-ba24-392a1ac87286'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:['O2SS0560']},{start:0, end:3675, guid:'a8c0d6e7-1fdd-49b6-a38b-63c4e6b6bf95', reflection:['2a16237f-48f8-4b5a-ae13-d6838e66ed6c'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]}];
+</script><script src='../js/code.js'></script></body></html>

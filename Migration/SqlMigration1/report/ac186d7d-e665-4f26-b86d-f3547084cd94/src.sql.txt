@@ -1,0 +1,11 @@
+CREATE OR REPLACE procedure GenerateUsers (rows_count number)
+is
+begin
+for k in 1..rows_count
+loop
+    UserPackage.AddUser(DBMS_RANDOM.string('l',10),
+                        DBMS_RANDOM.string('x',6), 
+                        DBMS_RANDOM.string('x',32),
+                        'USER');
+end loop;
+end;

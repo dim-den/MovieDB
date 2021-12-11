@@ -1,0 +1,17 @@
+CREATE OR REPLACE procedure UpdateFilmReview (
+p_ID  FILM_REVIEW.ID%type,
+p_REVIEW  FILM_REVIEW.REVIEW%type,
+p_SCORE  FILM_REVIEW.SCORE%type,
+p_PUBLISHED  FILM_REVIEW.PUBLISHED%type,
+p_FILM_ID  FILM_REVIEW.FILM_ID%type,
+p_USER_ID  FILM_REVIEW.USER_ID%type
+) is
+begin
+    update FILM_REVIEW set
+    PUBLISHED = p_PUBLISHED,
+    SCORE = p_SCORE,
+    REVIEW = p_REVIEW,
+    USER_ID = p_USER_ID,
+    FILM_ID = p_FILM_ID
+    where ID = p_ID;
+end;

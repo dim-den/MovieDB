@@ -1,0 +1,9 @@
+CREATE OR REPLACE procedure UpdateGenre (
+p_ID in Genre.ID%type,
+p_NAME in Genre.NAME%type
+) is
+begin
+    update Genre set    
+    NAME = p_NAME
+    where ID = p_ID;
+end;

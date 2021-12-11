@@ -1,0 +1,214 @@
+CREATE OR REPLACE FUNCTION get_network_metadata(
+    metadata_type      VARCHAR2
+  , options            VARCHAR2 default NULL
+  , p_network_owner    VARCHAR2 default null
+  , p_network_name     VARCHAR2 default null
+  ) RETURN MDSYS.RDF_Graphs PIPELINED
+  AS
+    FORM_STR_SEP CONSTANT VARCHAR2(30) := ' |+| ';
+    u_metadata                  varchar2(30) := nls_UPPER(metadata_type);
+    q_networkOwner              varchar2(130);
+    selstmt                     VARCHAR2(300);  
+    query_cv                    sys_refcursor;
+    prefix                      VARCHAR2(70); 
+    table_suffix                varchar2(128);
+
+    vlist                       sys.odcivarchar2list; -- list of retrieved values
+    clist                       sys.odcivarchar2list; -- list of column names
+    cv_list                     varchar2(4000); -- formatted <col,val> list
+
+    models_clist                 CONSTANT sys.odcivarchar2list := sys.odcivarchar2list(
+      'OWNER','MODEL_ID','MODEL_NAME','TABLE_NAME','COLUMN_NAME','MODEL_TABLESPACE_NAME','MODEL_TYPE','INMEMORY');
+    rulebases_clist              CONSTANT sys.odcivarchar2list := sys.odcivarchar2list(
+      'OWNER','RULEBASE_NAME','RULEBASE_VIEW_NAME','STATUS');
+    entailments_clist            CONSTANT sys.odcivarchar2list := sys.odcivarchar2list(
+      'OWNER','INDEX_NAME','INDEX_VIEW_NAME','STATUS','MODEL_COUNT','RULEBASE_COUNT');
+    datatype_indexes_clist CONSTANT sys.odcivarchar2list := sys.odcivarchar2list(
+      'DATATYPE','INDEX_NAME','STATUS','TABLESPACE_NAME','FUNCIDX_STATUS');
+    network_indexes_clist        CONSTANT sys.odcivarchar2list := sys.odcivarchar2list(
+      'NAME','IDX_TYPE','ID','INDEX_CODE','INDEX_NAME',
+      'LAST_REFRESH','STATUS','TABLESPACE_NAME','UNIQUENESS',
+      'COMPRESSION','PREFIX_LENGTH','BLEVEL','LEAF_BLOCKS',
+      'NUM_ROWS','DISTINCT_KEYS','AVG_LEAF_BLOCKS_PER_KEY','AVG_DATA_BLOCKS_PER_KEY',
+      'CLUSTERING_FACTOR','SAMPLE_SIZE','LAST_ANALYZED');
+    virtual_model_info_clist     CONSTANT sys.odcivarchar2list := sys.odcivarchar2list(
+      'OWNER','VIRTUAL_MODEL_NAME','UNIQUE_VIEW_NAME',
+      'DUPLICATE_VIEW_NAME','STATUS','MODEL_COUNT','RULEBASE_COUNT','RULES_INDEX_COUNT');
+    virtual_model_datasets_clist CONSTANT sys.odcivarchar2list := sys.odcivarchar2list(
+      'VIRTUAL_MODEL_NAME','DATA_TYPE','DATA_NAME');
+    entailment_datasets_clist    CONSTANT sys.odcivarchar2list := sys.odcivarchar2list(
+      'INDEX_NAME','DATA_TYPE','DATA_NAME');
+
+    OWNER                       VARCHAR2(128); 
+    MODEL_ID                    NUMBER;        
+    MODEL_NAME                  VARCHAR2(128);  
+    TABLE_NAME                  VARCHAR2(128); 
+    COLUMN_NAME                 VARCHAR2(128);  
+    MODEL_TABLESPACE_NAME       VARCHAR2(128);  
+    MODEL_TYPE                  VARCHAR2(40);
+    INMEMORY                    VARCHAR2(1);
+
+    RULEBASE_NAME               VARCHAR2(128);
+    RULEBASE_VIEW_NAME          VARCHAR2(133);
+    STATUS                      VARCHAR2(30);
+
+    INDEX_NAME                  VARCHAR2(128);
+    INDEX_VIEW_NAME             VARCHAR2(133);
+    MODEL_COUNT                 NUMBER;
+    RULEBASE_COUNT              NUMBER;
+
+    DATATYPE         VARCHAR2(51);
+    TABLESPACE_NAME  VARCHAR2(30);
+    FUNCIDX_STATUS   VARCHAR2(8);
+
+    NAME                      VARCHAR2(128);
+    IDX_TYPE                  VARCHAR2(10);
+    ID                        NUMBER;
+    INDEX_CODE                VARCHAR2(100);
+    LAST_REFRESH              TIMESTAMP(6) WITH TIME ZONE;
+    UNIQUENESS                VARCHAR2(9);
+    COMPRESSION               VARCHAR2(13);
+    PREFIX_LENGTH             NUMBER;
+    BLEVEL                    NUMBER;
+    LEAF_BLOCKS               NUMBER;
+    NUM_ROWS                  NUMBER;
+    DISTINCT_KEYS             NUMBER;
+    AVG_LEAF_BLOCKS_PER_KEY   NUMBER;
+    AVG_DATA_BLOCKS_PER_KEY   NUMBER;
+    CLUSTERING_FACTOR         NUMBER;
+    SAMPLE_SIZE               NUMBER;
+    LAST_ANALYZED             DATE;
+
+    VIRTUAL_MODEL_NAME  VARCHAR2(128);
+    UNIQUE_VIEW_NAME    VARCHAR2(128);
+    DUPLICATE_VIEW_NAME VARCHAR2(128);
+    RULES_INDEX_COUNT   NUMBER;
+
+    DATA_TYPE                VARCHAR2(8);
+    DATA_NAME                VARCHAR2(128);
+
+    function format_cv_list(clist sys.odcivarchar2list, vlist sys.odcivarchar2list, options varchar2 default NULL) 
+    return varchar2 as
+      sep constant varchar2(30) := FORM_STR_SEP;
+      formatted_str varchar2(4000) := NULL;
+    begin
+      if clist is NULL or vlist is NULL or (clist.COUNT != vlist.COUNT) or (clist.COUNT = 0) then
+        raise_application_error(-20000, 'count mismatch or zero-count: clist.COUNT=' || clist.COUNT || ' vlist.COUNT=' || vlist.COUNT);
+      end if;
+      for i in 1..clist.COUNT loop
+        formatted_str := formatted_str || sep || 
+          (case when instr(nls_UPPER(options),'INCLUDE_COLNAME') > 0 then (clist(i) || '=') else NULL end) || 
+          vlist(i);
+      end loop;
+      formatted_str := formatted_str || sep;
+      return formatted_str;
+    end format_cv_list;
+
+  BEGIN
+    table_suffix := case u_metadata
+                      when 'MODELS' then 'sem_model$'
+                      when 'RULEBASES' then 'sem_rulebase_info'
+                      when 'ENTAILMENTS' then 'sem_rules_index_info'
+                      when 'DATATYPE_INDEXES' then 'sem_dtype_index_info'
+                      when 'NETWORK_INDEXES' then 'sem_network_index_info'
+                      when 'VIRTUAL_MODEL_INFO' then 'sem_vmodel_info'
+                      when 'VIRTUAL_MODEL_DATASETS' then 'sem_vmodel_datasets'
+                      when 'ENTAILMENT_DATASETS' then 'sem_rules_index_datasets'
+                      else 'UNKNOWN'
+                    end;
+    if (table_suffix = 'UNKNOWN') then
+      raise_application_error(-20000, 'Unknown metadata type: ' || metadata_type);
+    end if;
+
+    clist := case u_metadata
+                      when 'MODELS' then models_clist
+                      when 'RULEBASES' then rulebases_clist
+                      when 'ENTAILMENTS' then entailments_clist
+                      when 'DATATYPE_INDEXES' then datatype_indexes_clist
+                      when 'NETWORK_INDEXES' then network_indexes_clist
+                      when 'VIRTUAL_MODEL_INFO' then virtual_model_info_clist
+                      when 'VIRTUAL_MODEL_DATASETS' then virtual_model_datasets_clist
+                      when 'ENTAILMENT_DATASETS' then entailment_datasets_clist
+                      else NULL
+                    end;
+    if (clist is NULL) then
+      raise_application_error(-20000, 'Unknown metadata type: ' || metadata_type);
+    end if;
+
+    prefix := '"MDSYS".'; 
+    IF (p_network_owner IS NOT NULL) THEN 
+      q_networkOwner := sys.dbms_assert.enquote_name(p_network_owner, TRUE);
+      if (q_networkOwner != '"MDSYS"') then
+        if (p_network_name IS NOT NULL) then
+          prefix := q_networkOwner || '.' || p_network_name || '#';
+        else
+          raise_application_error(-20000, 'p_network_name must not be NULL when p_network_owner=' || q_networkOwner);
+        end if;
+      elsif (p_network_name IS NOT NULL) then 
+        raise_application_error(-20000, 'p_network_name must be NULL when p_network_owner=' || q_networkOwner);
+      end if;
+    END IF; 
+
+    selstmt := 'select * from ' || sys.dbms_assert.qualified_sql_name(prefix || table_suffix);
+    open query_cv for selstmt;
+    LOOP
+      if u_metadata = 'MODELS' then
+        fetch query_cv into OWNER,MODEL_ID,MODEL_NAME,TABLE_NAME,COLUMN_NAME,MODEL_TABLESPACE_NAME,MODEL_TYPE,INMEMORY;
+        exit when (query_cv%notfound);
+        vlist := sys.odcivarchar2list(
+          OWNER,MODEL_ID,MODEL_NAME,TABLE_NAME,COLUMN_NAME,MODEL_TABLESPACE_NAME,MODEL_TYPE,INMEMORY);
+      elsif u_metadata = 'RULEBASES' then
+        fetch query_cv into OWNER,RULEBASE_NAME,RULEBASE_VIEW_NAME,STATUS;
+        exit when (query_cv%notfound);
+        vlist := sys.odcivarchar2list(
+          OWNER,RULEBASE_NAME,RULEBASE_VIEW_NAME,STATUS);
+      elsif u_metadata = 'ENTAILMENTS' then
+        fetch query_cv into OWNER,INDEX_NAME,INDEX_VIEW_NAME,STATUS,MODEL_COUNT,RULEBASE_COUNT;
+        exit when (query_cv%notfound);
+        vlist := sys.odcivarchar2list(
+          OWNER, INDEX_NAME,INDEX_VIEW_NAME,STATUS,MODEL_COUNT,RULEBASE_COUNT);
+      elsif u_metadata = 'DATATYPE_INDEXES' then
+        fetch query_cv into DATATYPE,INDEX_NAME,STATUS,TABLESPACE_NAME,FUNCIDX_STATUS;
+        exit when (query_cv%notfound);
+        vlist := sys.odcivarchar2list(
+          DATATYPE,INDEX_NAME,STATUS,TABLESPACE_NAME,FUNCIDX_STATUS);
+      elsif u_metadata = 'NETWORK_INDEXES' then
+          fetch query_cv into NAME,IDX_TYPE,ID,INDEX_CODE,INDEX_NAME,
+                              LAST_REFRESH,STATUS,TABLESPACE_NAME,UNIQUENESS,
+                              COMPRESSION,PREFIX_LENGTH,BLEVEL,LEAF_BLOCKS,
+                              NUM_ROWS,DISTINCT_KEYS,AVG_LEAF_BLOCKS_PER_KEY,AVG_DATA_BLOCKS_PER_KEY,
+                              CLUSTERING_FACTOR,SAMPLE_SIZE,LAST_ANALYZED;
+        exit when (query_cv%notfound);
+        vlist := sys.odcivarchar2list(
+          NAME,IDX_TYPE,ID,INDEX_CODE,INDEX_NAME,
+          LAST_REFRESH,STATUS,TABLESPACE_NAME,UNIQUENESS,
+          COMPRESSION,PREFIX_LENGTH,BLEVEL,LEAF_BLOCKS,
+          NUM_ROWS,DISTINCT_KEYS,AVG_LEAF_BLOCKS_PER_KEY,AVG_DATA_BLOCKS_PER_KEY,
+          CLUSTERING_FACTOR,SAMPLE_SIZE,LAST_ANALYZED);
+      elsif u_metadata = 'VIRTUAL_MODEL_INFO' then
+        fetch query_cv into OWNER,VIRTUAL_MODEL_NAME,UNIQUE_VIEW_NAME,
+                            DUPLICATE_VIEW_NAME,STATUS,MODEL_COUNT,RULEBASE_COUNT,RULES_INDEX_COUNT;
+        exit when (query_cv%notfound);
+        vlist := sys.odcivarchar2list(
+          OWNER,VIRTUAL_MODEL_NAME,UNIQUE_VIEW_NAME,
+          DUPLICATE_VIEW_NAME,STATUS,MODEL_COUNT,RULEBASE_COUNT,RULES_INDEX_COUNT);
+      elsif u_metadata = 'VIRTUAL_MODEL_DATASETS' then
+        fetch query_cv into VIRTUAL_MODEL_NAME,DATA_TYPE,DATA_NAME;
+        exit when (query_cv%notfound);
+        vlist := sys.odcivarchar2list(
+          VIRTUAL_MODEL_NAME,DATA_TYPE,DATA_NAME);
+      elsif u_metadata = 'ENTAILMENT_DATASETS' then
+        fetch query_cv into INDEX_NAME,DATA_TYPE,DATA_NAME;
+        exit when (query_cv%notfound);
+        vlist := sys.odcivarchar2list(
+          INDEX_NAME,DATA_TYPE,DATA_NAME);
+      else
+        raise_application_error(-20000, 'Unknown metadata type: ' || metadata_type);
+      end if;
+
+      cv_list := format_cv_list(clist, vlist, options);
+
+      PIPE ROW (cv_list);
+    END LOOP;
+
+  END get_network_metadata;

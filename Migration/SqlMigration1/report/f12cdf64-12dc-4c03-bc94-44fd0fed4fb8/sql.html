@@ -1,0 +1,90 @@
+<html>
+<head>
+<meta http-equiv='Content-Type' content='text/html; charset=UTF-8'>
+<meta http-equiv='X-UA-Compatible' content='IE=edge' />
+<link rel=stylesheet data-name='vs/editor/editor.main' href='../monaco/editor.main.css' type='text/css'>
+<link rel='stylesheet' type='text/css' href='../css/style.css'></link>
+<script type='text/javascript' src='../js/functions.js'></script>
+<script async='async' type='text/javascript' src='../monaco/sql.js'></script>
+<script src='../monaco/loader.js'></script>
+<script src='../monaco/editor.main.nls.js'></script>
+<script src='../monaco/editor.main.js'></script>
+</head>
+<body class='sql-body' id='scrollable-body'>
+<div id='left-side' class='left-side'><div class='panel'>
+<span class='panel-title source'>&nbsp;Source</span>
+<img tabindex='0' aria-label='Previous problem' role='button' class='nav-button nav-button-disabled' id='source_previous_problem' src='../img/previous_problem.gif' onclick='handleProblemButtonClick(-1, true)' title='Previous problem' />
+<img tabindex='0' aria-label='Next problem' role='button' class='nav-button nav-button-disabled' id='source_next_problem' src='../img/next_problem.gif' onclick='handleProblemButtonClick(1, true)' title='Next problem' />
+<img tabindex='0' aria-label='Previous bookmark' role='button' class='nav-button nav-button-disabled' id='source_previous_bookmark' src='../img/previous_bookmark.gif' onclick='handleBookmarkButtonClick(-1, true)' title='Previous bookmark' />
+<img tabindex='0' aria-label='Next bookmark' role='button' class='nav-button nav-button-disabled' id='source_next_bookmark' src='../img/next_bookmark.gif' onclick='handleBookmarkButtonClick(1, true)' title='Next bookmark' />
+<img tabindex='0' aria-label='Clear bookmarks' role='button' class='nav-button nav-button-disabled' id='source_clear_bookmarks' src='../img/clear_bookmarks.gif' onclick='handleBookmarkButtonClick(0, true)' title='Clear bookmarks' />
+<a class='raw-source-link' target='_blank' aria-label='Raw source' href='./src.sql.txt');'>Raw source</a>
+</div>
+<div class='editor-container'>
+<div id='monaco-left-side'></div><pre id='monaco-left-side-sql'>
+CREATE OR REPLACE 
+	VIEW MGV_ALL_CONNECTIONS (
+		PROJECT_ID, 
+		PROJECT_NAME, 
+		CONNECTION_ID, 
+		CONNECTION_NAME, 
+		HOST, 
+		PORT, 
+		USERNAME, 
+		DBURL)
+		AS 
+			SELECT 
+				md_projects.id project_id, 
+				md_projects.project_name project_name, 
+				MD_CONNECTIONS.ID CONNECTION_ID, 
+				MD_CONNECTIONS.NAME CONNECTION_NAME, 
+				md_connections.host host, 
+				md_connections.port port, 
+				md_connections.username username, 
+				md_connections.dburl dburl
+			FROM md_projects, md_connections
+			WHERE MD_CONNECTIONS.PROJECT_ID_FK = MD_PROJECTS.ID
+			 WITH READ ONLY;
+</pre></div></div><div id='resize-bar' class='resize-bar'></div><div id='right-side' class='right-side'><div class='panel'>
+<span class='panel-title target'>&nbsp;Target</span>
+<img tabindex='0' aria-label='Previous problem' role='button' class='nav-button nav-button-disabled' id='target_previous_problem' src='../img/previous_problem.gif' onclick='handleProblemButtonClick(-1, false)' title='Previous problem' />
+<img tabindex='0' aria-label='Next problem' role='button' class='nav-button nav-button-disabled' id='target_next_problem' src='../img/next_problem.gif' onclick='handleProblemButtonClick(1, false)' title='Next problem' />
+<img tabindex='0' aria-label='Previous bookmark' role='button' class='nav-button nav-button-disabled' id='target_previous_bookmark' src='../img/previous_bookmark.gif' onclick='handleBookmarkButtonClick(-1, false)' title='Previous bookmark' />
+<img tabindex='0' aria-label='Next bookmark' role='button' class='nav-button nav-button-disabled' id='target_next_bookmark' src='../img/next_bookmark.gif' onclick='handleBookmarkButtonClick(1, false)' title='Next bookmark' />
+<img tabindex='0' aria-label='Clear bookmarks' role='button' class='nav-button nav-button-disabled' id='target_clear_bookmarks' src='../img/clear_bookmarks.gif' onclick='handleBookmarkButtonClick(0, false)' title='Clear bookmarks' />
+</div>
+<div class='editor-container'>
+<div id='monaco-right-side'></div><pre id='monaco-right-side-sql'>
+/*
+*   SSMA warning messages:
+*   O2SS0017: Attribute WITH READ ONLY cannot be converted. 
+*    WITH READ ONLY
+*/
+
+CREATE VIEW MOVIE_USER.MGV_ALL_CONNECTIONS (
+	PROJECT_ID, 
+	PROJECT_NAME, 
+	CONNECTION_ID, 
+	CONNECTION_NAME, 
+	HOST, 
+	PORT, 
+	USERNAME, 
+	DBURL)
+AS 
+	SELECT 
+		MD_PROJECTS.ID AS PROJECT_ID, 
+		MD_PROJECTS.PROJECT_NAME AS PROJECT_NAME, 
+		MD_CONNECTIONS.ID AS CONNECTION_ID, 
+		MD_CONNECTIONS.NAME AS CONNECTION_NAME, 
+		MD_CONNECTIONS.HOST AS HOST, 
+		MD_CONNECTIONS.PORT AS PORT, 
+		MD_CONNECTIONS.USERNAME AS USERNAME, 
+		MD_CONNECTIONS.DBURL AS DBURL
+	FROM MOVIE_USER.MD_PROJECTS, MOVIE_USER.MD_CONNECTIONS
+	WHERE MD_CONNECTIONS.PROJECT_ID_FK = MD_PROJECTS.ID
+GO</pre></div></div><script>
+var sourceLanguage = 'sql';
+var sourceEditorSelections = [{start:163, end:572, guid:'e6c92262-6c86-4b8b-84c7-ed71931ac154', reflection:['63c47990-dea9-4aff-a893-10950c6e2b29'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:0, end:573, guid:'d285aaa3-edf0-476b-a3fa-3639f64e186e', reflection:['04f65acb-123f-421e-bc7c-700eedf80d89'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]}];
+var targetLanguage = 'sql';
+var targetEditorSelections = [{start:266, end:680, guid:'63c47990-dea9-4aff-a893-10950c6e2b29', reflection:['e6c92262-6c86-4b8b-84c7-ed71931ac154'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:0, end:680, guid:'04f65acb-123f-421e-bc7c-700eedf80d89', reflection:['d285aaa3-edf0-476b-a3fa-3639f64e186e'], convmessInfoIds:[], convmessWarningIds:['O2SS0017'], convmessErrorIds:[]}];
+</script><script src='../js/code.js'></script></body></html>

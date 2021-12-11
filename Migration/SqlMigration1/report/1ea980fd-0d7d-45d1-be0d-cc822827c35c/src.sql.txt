@@ -1,0 +1,7 @@
+CREATE OR REPLACE procedure DeleteFilmCast (
+p_ID in FILM_CAST.ID%type
+) is
+begin
+    delete from FILM_CAST
+    where ID = p_ID;
+end;

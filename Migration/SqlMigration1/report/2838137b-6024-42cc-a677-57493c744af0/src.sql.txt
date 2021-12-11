@@ -1,0 +1,23 @@
+CREATE OR REPLACE FUNCTION get_item_from_string(str varchar2, item_num integer, separator varchar2 default NULL) RETURN varchar2
+  AS
+    FORM_STR_SEP CONSTANT VARCHAR2(30) := ' |+| ';
+    sep           varchar2(30) := NVL(separator, FORM_STR_SEP);
+    start_pos     integer;
+    end_pos       integer;
+  BEGIN
+    if (item_num <= 0) then
+      raise_application_error(-20000, 'Must be a positive integer: item_num=' || item_num);
+    end if;
+
+    start_pos := instr(str,sep,1,item_num) + length(sep);
+    if start_pos <= length(sep) then
+      raise_application_error(-20000, 'No such item.');
+    end if;
+
+    end_pos := instr(str,sep,1,item_num+1);
+    if (end_pos = 0) then
+      raise_application_error(-20000, 'No end separator found.');
+    end if;
+
+    RETURN substr(str, start_pos, end_pos - start_pos);
+  END get_item_from_string;

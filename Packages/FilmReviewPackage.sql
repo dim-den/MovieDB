@@ -1,0 +1,44 @@
+create or replace package body FilmReviewPackage as
+
+-- Insert
+procedure AddFilmReview (
+p_REVIEW  FILM_REVIEW.REVIEW%type,
+p_SCORE  FILM_REVIEW.SCORE%type,
+p_PUBLISHED  FILM_REVIEW.PUBLISHED%type,
+p_FILM_ID  FILM_REVIEW.FILM_ID%type,
+p_USER_ID  FILM_REVIEW.USER_ID%type
+) is
+begin
+    insert into FILM_REVIEW(REVIEW,SCORE,PUBLISHED,FILM_ID,USER_ID) values 
+    (p_REVIEW,p_SCORE,p_PUBLISHED,p_FILM_ID,p_USER_ID);
+end;
+
+-- Update
+procedure UpdateFilmReview (
+p_ID  FILM_REVIEW.ID%type,
+p_REVIEW  FILM_REVIEW.REVIEW%type,
+p_SCORE  FILM_REVIEW.SCORE%type,
+p_PUBLISHED  FILM_REVIEW.PUBLISHED%type,
+p_FILM_ID  FILM_REVIEW.FILM_ID%type,
+p_USER_ID  FILM_REVIEW.USER_ID%type
+) is
+begin
+    update FILM_REVIEW set
+    PUBLISHED = p_PUBLISHED,
+    SCORE = p_SCORE,
+    REVIEW = p_REVIEW,
+    USER_ID = p_USER_ID,
+    FILM_ID = p_FILM_ID
+    where ID = p_ID;
+end;
+
+-- Delete
+procedure DeleteFilmReview (
+p_ID  FILM_REVIEW.ID%type
+) is
+begin
+    delete from FILM_REVIEW
+    where ID = p_ID;
+end;
+
+end FilmReviewPackage;

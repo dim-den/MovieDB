@@ -1,0 +1,21 @@
+CREATE OR REPLACE procedure UpdateFilm (
+p_ID in FILM.ID%type,
+p_Title in FILM.Title%type,
+p_Description in FILM.Description%type,
+p_Director in FILM.Director%type,
+p_Country in FILM.Country%type,
+p_Budget in FILM.Budget%type,
+p_Release in FILM.Release%type,
+p_Fees in FILM.Fees%type
+) is
+begin
+    update FILM set
+    Description = p_Description,
+    Director = p_Director,
+    Title = p_Title,
+    Country = p_Country,
+    Budget = p_Budget,
+    Fees = p_Fees,
+    Release = p_Release
+    where ID = p_ID;
+end;
