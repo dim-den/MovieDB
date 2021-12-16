@@ -1,5 +1,14 @@
 create or replace package body GenrePackage as
 
+function GetGenresCount return number
+is
+    count_genres number;
+begin
+    select count(*) into count_genres from Genre;
+    return count_genres;
+end;
+
+
 -- Insert
 procedure AddGenre (
 p_NAME in Genre.NAME%type

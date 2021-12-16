@@ -194,7 +194,7 @@ is
               XMLElement("published", sup.published),
               XMLElement("score", sup.score),
               XMLElement("film_id", sup.film_id),
-              XMLElement("score_id", sup.user_id))
+              XMLElement("user_id", sup.user_id))
             into one_entity from dual;
             sup_string := one_entity.getStringVal();
             UTL_FILE.put_line (l_file, sup_string);
@@ -240,10 +240,7 @@ end ExportFilmGenres;
 end DataExportPackage;
 
 begin
-     DataExportPackage.ExportGenres();
-     DataExportPackage.ExportFilmGenres();
+     DataExportPackage.ExportFilmReviews();
 end;
 
 end;
-
-SELECT * FROM FILM_GENRES

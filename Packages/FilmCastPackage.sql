@@ -1,5 +1,14 @@
 create or replace package body FilmCastPackage as
 
+function GetFilmCastsCount return number
+is
+    count_film_casts number;
+begin
+    select count(*) into count_film_casts from FILM_CAST;
+    return count_film_casts;
+end;
+
+
 -- Insert
 procedure AddFilmCast (
 p_ROLE_TYPE in FILM_CAST.ROLE_TYPE%type,

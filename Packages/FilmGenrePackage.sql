@@ -1,5 +1,13 @@
 create or replace package body FilmGenrePackage as
 
+function GetFilmGenresCount return number
+is
+    count_film_genres number;
+begin
+    select count(*) into count_film_genres from FILM_GENRES;
+    return count_film_genres;
+end;
+
 -- Insert
 procedure AddFilmGenre (
 p_FILM_ID in FILM_GENRES.FILM_ID%type,

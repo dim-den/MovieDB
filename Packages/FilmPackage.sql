@@ -1,5 +1,33 @@
 create or replace package body FilmPackage as
 
+function GetFilmsCount return number
+is
+    count_films number;
+begin
+    select count(*) into count_films from FILM;
+    return count_films;
+end;
+
+procedure SearchFilmByContainingTitleIgnoreCase(p_Title FILM.Title%type)
+is
+    cursor cur is select f.title, f.description, f.director, f.country, f.budget, f.release, f.fees from film f where upper(f.title) like '%'||upper(p_Title)||'%';
+    Title FILM.Title%type;
+    Description FILM.Description%type;
+    Director FILM.Director%type;
+    Country FILM.Country%type;
+    Budget FILM.Budget%type;
+    Release FILM.Release%type;
+    Fees FILM.Fees%type;
+begin
+    open cur;
+    fetch cur into Title, Description, Director, Country, Budget, Release, Fees;
+    while cur%found loop
+        dbms_output.put_line(Title||'(DESCRIPTION: '||Description||', DIRECTOR: '||Director||', COUNTRY: '||Country||', BUDGET: '||Budget||', RELEASE: '||Release||', FEES: '||Fees||')');
+        fetch cur into Title, Description, Director, Country, Budget, Release, Fees;
+    end loop;
+    close cur;
+end SearchFilmByContainingTitleIgnoreCase;
+
 -- Insert
 procedure AddFilm (
 p_Title in FILM.Title%type,
@@ -46,6 +74,5 @@ begin
     delete from FILM
     where ID = p_ID;
 end;
-
 
 end FilmPackage;

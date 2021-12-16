@@ -1,5 +1,14 @@
 create or replace package body FilmReviewPackage as
 
+function GetFilmReviewsCount return number
+is
+    count_film_reviews number;
+begin
+    select count(*) into count_film_reviews from FILM_REVIEW;
+    return count_film_reviews;
+end;
+
+
 -- Insert
 procedure AddFilmReview (
 p_REVIEW  FILM_REVIEW.REVIEW%type,

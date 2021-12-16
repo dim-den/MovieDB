@@ -42,8 +42,10 @@ end;
 end DataGeneratorPackage;
 
 begin 
-    DataGenerator.GenerateUsers(10);
+    DataGenerator.GenerateActors(1000);
 end;
+
+commit;
 
 select count(*) from actor;
 delete from actor where id > 20;

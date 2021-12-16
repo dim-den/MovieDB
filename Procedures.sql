@@ -1,5 +1,9 @@
 create or replace package FilmPackage as
 
+procedure SearchFilmByContainingTitleIgnoreCase(p_Title FILM.Title%type);
+
+function GetFilmsCount return number;
+
 procedure AddFilm (
 p_Title in FILM.Title%type,
 p_Description in FILM.Description%type,
@@ -29,6 +33,10 @@ end FilmPackage;
 
 create or replace package ActorPackage as
 
+procedure SearchActorByContainingSurnameIgnoreCase(p_SURNAME ACTOR.SURNAME%type);
+
+function GetActorsCount return number;
+
 procedure AddActor (
 p_NAME in ACTOR.NAME%type,
 p_SURNAME in ACTOR.SURNAME%type,
@@ -51,6 +59,18 @@ p_ID in ACTOR.ID%type
 end ActorPackage;
 
 create or replace package UserPackage as
+
+procedure Login(
+p_EMAIL USERS.EMAIL%type, 
+p_PASSWORD_HASH USERS.PASSWORD_HASH%type);
+
+procedure Register(
+p_EMAIL in USERS.EMAIL%type,
+p_USERNAME in USERS.USERNAME%type,
+p_PASSWORD_HASH in USERS.PASSWORD_HASH%type,
+p_ROLE in USERS.ROLE%type);
+
+function GetUsersCount return number;
 
 procedure AddUser (
 p_EMAIL in USERS.EMAIL%type,
@@ -75,6 +95,8 @@ end UserPackage;
 
 create or replace package GenrePackage as
 
+function GetGenresCount return number;
+
 procedure AddGenre (
 p_NAME in Genre.NAME%type
 );
@@ -91,6 +113,8 @@ p_ID in Genre.ID%type
 end GenrePackage;
 
 create or replace package FilmReviewPackage as
+
+function GetFilmReviewsCount return number;
 
 procedure AddFilmReview (
 p_REVIEW  FILM_REVIEW.REVIEW%type,
@@ -117,6 +141,8 @@ end FilmReviewPackage;
 
 create or replace package FilmCastPackage as
 
+function GetFilmCastsCount return number;
+
 procedure AddFilmCast (
 p_ROLE_TYPE in FILM_CAST.ROLE_TYPE%type,
 p_ROLE_NAME in FILM_CAST.ROLE_NAME%type,
@@ -139,6 +165,8 @@ p_ID in FILM_CAST.ID%type
 end FilmCastPackage;
 
 create or replace package FilmGenrePackage as
+
+function GetFilmGenresCount return number;
 
 procedure AddFilmGenre (
 p_FILM_ID in FILM_GENRES.FILM_ID%type,
@@ -169,6 +197,12 @@ end DataExportPackage;
 
 create or replace package DataImportPackage as
   procedure ImportActors (fname varchar2);
+  procedure ImportFilms (fname varchar2);
+  procedure ImportUsers (fname varchar2);
+  procedure ImportGenres (fname varchar2);
+  procedure ImportFilmReviews (fname varchar2);
+  procedure ImportFilmCasts (fname varchar2);
+  procedure ImportFilmGenres (fname varchar2);
 end DataImportPackage;
 
 create or replace package DataGeneratorPackage as

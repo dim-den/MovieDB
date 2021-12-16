@@ -1,7 +1,32 @@
 create or replace package body ActorPackage as
 
+procedure SearchActorByContainingSurnameIgnoreCase(p_SURNAME ACTOR.SURNAME%type)
+is
+    cursor cur is select a.name, a.surname, a.country, a.bday from actor a where upper(a.surname) like '%'||upper(p_SURNAME)||'%';
+    NAME ACTOR.NAME%type;
+    SURNAME ACTOR.SURNAME%type;
+    COUNTRY ACTOR.COUNTRY%type;
+    BDAY ACTOR.BDAY%type;
+begin
+    open cur;
+    fetch cur into NAME, SURNAME, COUNTRY, BDAY;
+    while cur%found loop
+        dbms_output.put_line(NAME||' '||SURNAME||' (COUNTRY: '||COUNTRY||', BIRTHDAY: '||TO_CHAR(BDAY,'DD/MM/YYYY')||')' );
+        fetch cur into NAME, SURNAME, COUNTRY, BDAY;
+    end loop;
+    close cur;
+end SearchActorByContainingSurnameIgnoreCase;
+
+function GetActorsCount return number
+is
+    count_actors number;
+begin
+    select count(*) into count_actors from ACTOR;
+    return count_actors;
+end;
+
 -- Insert
-procedure AddActor (
+procedure AddActor (    
 p_NAME in ACTOR.NAME%type,
 p_SURNAME in ACTOR.SURNAME%type,
 p_COUNTRY in ACTOR.COUNTRY%type,
