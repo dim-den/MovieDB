@@ -1,0 +1,10 @@
+CREATE OR REPLACE procedure AddUser (
+p_EMAIL in USERS.EMAIL%type,
+p_USERNAME in USERS.USERNAME%type,
+p_PASSWORD_HASH in USERS.PASSWORD_HASH%type,
+p_ROLE in USERS.ROLE%type
+) is
+begin
+    insert into USERS(EMAIL,USERNAME,PASSWORD_HASH,ROLE) values 
+    (p_EMAIL,p_USERNAME,p_PASSWORD_HASH,p_ROLE);
+end;

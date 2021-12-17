@@ -1,0 +1,7 @@
+CREATE OR REPLACE function GetFilmAvgScore(p_FILM_ID FILM_REVIEW.FILM_ID%type) return float
+is
+    avg_score float;
+begin
+    select avg(score) into avg_score from FILM_REVIEW where film_id = p_FILM_ID;
+    return avg_score;
+end;

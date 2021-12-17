@@ -1,0 +1,227 @@
+<html>
+<head>
+<meta http-equiv='Content-Type' content='text/html; charset=UTF-8'>
+<meta http-equiv='X-UA-Compatible' content='IE=edge' />
+<link rel=stylesheet data-name='vs/editor/editor.main' href='../monaco/editor.main.css' type='text/css'>
+<link rel='stylesheet' type='text/css' href='../css/style.css'></link>
+<script type='text/javascript' src='../js/functions.js'></script>
+<script async='async' type='text/javascript' src='../monaco/sql.js'></script>
+<script src='../monaco/loader.js'></script>
+<script src='../monaco/editor.main.nls.js'></script>
+<script src='../monaco/editor.main.js'></script>
+</head>
+<body class='sql-body' id='scrollable-body'>
+<div id='left-side' class='left-side'><div class='panel'>
+<span class='panel-title source'>&nbsp;Source</span>
+<img tabindex='0' aria-label='Previous problem' role='button' class='nav-button nav-button-disabled' id='source_previous_problem' src='../img/previous_problem.gif' onclick='handleProblemButtonClick(-1, true)' title='Previous problem' />
+<img tabindex='0' aria-label='Next problem' role='button' class='nav-button nav-button-disabled' id='source_next_problem' src='../img/next_problem.gif' onclick='handleProblemButtonClick(1, true)' title='Next problem' />
+<img tabindex='0' aria-label='Previous bookmark' role='button' class='nav-button nav-button-disabled' id='source_previous_bookmark' src='../img/previous_bookmark.gif' onclick='handleBookmarkButtonClick(-1, true)' title='Previous bookmark' />
+<img tabindex='0' aria-label='Next bookmark' role='button' class='nav-button nav-button-disabled' id='source_next_bookmark' src='../img/next_bookmark.gif' onclick='handleBookmarkButtonClick(1, true)' title='Next bookmark' />
+<img tabindex='0' aria-label='Clear bookmarks' role='button' class='nav-button nav-button-disabled' id='source_clear_bookmarks' src='../img/clear_bookmarks.gif' onclick='handleBookmarkButtonClick(0, true)' title='Clear bookmarks' />
+<a class='raw-source-link' target='_blank' aria-label='Raw source' href='./src.sql.txt');'>Raw source</a>
+</div>
+<div class='editor-container'>
+<div id='monaco-left-side'></div><pre id='monaco-left-side-sql'>
+CREATE OR REPLACE 
+	PROCEDURE Register 
+		(
+			p_EMAIL IN USERS.EMAIL%TYPE, 
+			p_USERNAME IN USERS.USERNAME%TYPE, 
+			p_PASSWORD_HASH IN USERS.PASSWORD_HASH%TYPE, 
+			p_ROLE IN USERS.ROLE%TYPE
+		)
+	IS
+	
+		users_by_email number;
+		users_by_username number;
+		email_already_exists EXCEPTION;
+		username_already_exists EXCEPTION;
+		wrong_role_exception EXCEPTION;
+	BEGIN 
+
+		SELECT count(*)
+		INTO users_by_email
+		FROM Users
+		WHERE email = p_EMAIL;
+
+		IF users_by_email != 0 THEN 
+			RAISE email_already_exists;
+		END IF;
+
+		SELECT count(*)
+		INTO users_by_username
+		FROM Users
+		WHERE username = p_USERNAME;
+
+		IF users_by_username != 0 THEN 
+			RAISE username_already_exists;
+		END IF;
+
+		IF p_ROLE NOT IN ( 'ADMIN', 'USER' ) THEN 
+			RAISE wrong_role_exception;
+		END IF;
+
+		UserPackage.AddUser(p_EMAIL, p_USERNAME, p_PASSWORD_HASH, p_ROLE);
+
+		dbms_output.put_line('Succesful registration');
+
+		EXCEPTION 
+			WHEN email_already_exists THEN 
+				raise_application_error(-20111, 'Email already exists');
+			WHEN username_already_exists THEN 
+				raise_application_error(-20112, 'Username already exists');
+			WHEN wrong_role_exception THEN 
+				raise_application_error(-20113, 'Wrong role name');
+			WHEN others THEN 
+				raise_application_error(-20114, 'An error occurred');
+
+	END;
+</pre></div></div><div id='resize-bar' class='resize-bar'></div><div id='right-side' class='right-side'><div class='panel'>
+<span class='panel-title target'>&nbsp;Target</span>
+<img tabindex='0' aria-label='Previous problem' role='button' class='nav-button nav-button-disabled' id='target_previous_problem' src='../img/previous_problem.gif' onclick='handleProblemButtonClick(-1, false)' title='Previous problem' />
+<img tabindex='0' aria-label='Next problem' role='button' class='nav-button nav-button-disabled' id='target_next_problem' src='../img/next_problem.gif' onclick='handleProblemButtonClick(1, false)' title='Next problem' />
+<img tabindex='0' aria-label='Previous bookmark' role='button' class='nav-button nav-button-disabled' id='target_previous_bookmark' src='../img/previous_bookmark.gif' onclick='handleBookmarkButtonClick(-1, false)' title='Previous bookmark' />
+<img tabindex='0' aria-label='Next bookmark' role='button' class='nav-button nav-button-disabled' id='target_next_bookmark' src='../img/next_bookmark.gif' onclick='handleBookmarkButtonClick(1, false)' title='Next bookmark' />
+<img tabindex='0' aria-label='Clear bookmarks' role='button' class='nav-button nav-button-disabled' id='target_clear_bookmarks' src='../img/clear_bookmarks.gif' onclick='handleBookmarkButtonClick(0, false)' title='Clear bookmarks' />
+</div>
+<div class='editor-container'>
+<div id='monaco-right-side'></div><pre id='monaco-right-side-sql'>
+CREATE PROCEDURE MOVIE_USER.USERPACKAGE$REGISTER  
+	@P_EMAIL varchar(1020),
+	@P_USERNAME varchar(1020),
+	@P_PASSWORD_HASH varchar(1020),
+	@P_ROLE varchar(1020)
+AS 
+	BEGIN
+
+		DECLARE
+			/*
+			*   SSMA warning messages:
+			*   O2SS0356: Conversion from NUMBER datatype can cause data loss.
+			*/
+
+			@USERS_BY_EMAIL float(53), 
+			/*
+			*   SSMA warning messages:
+			*   O2SS0356: Conversion from NUMBER datatype can cause data loss.
+			*/
+
+			@USERS_BY_USERNAME float(53), 
+			@EMAIL_ALREADY_EXISTS$exception nvarchar(1000), 
+			@USERNAME_ALREADY_EXISTS$exception nvarchar(1000), 
+			@WRONG_ROLE_EXCEPTION$exception nvarchar(1000)
+
+		BEGIN TRY
+
+			EXECUTE ssma_oracle.db_check_init_package 'MOVIE_USER', 'USERPACKAGE'
+
+			SET @EMAIL_ALREADY_EXISTS$exception = N'local:oracle:{MOVIE_USER|REGISTER}:000:EMAIL_ALREADY_EXISTS'
+
+			SET @USERNAME_ALREADY_EXISTS$exception = N'local:oracle:{MOVIE_USER|REGISTER}:001:USERNAME_ALREADY_EXISTS'
+
+			SET @WRONG_ROLE_EXCEPTION$exception = N'local:oracle:{MOVIE_USER|REGISTER}:002:WRONG_ROLE_EXCEPTION'
+
+			SELECT @USERS_BY_EMAIL = count_big(*)
+			FROM MOVIE_USER.USERS
+			WHERE USERS.EMAIL = @P_EMAIL
+
+			IF @USERS_BY_EMAIL != 0
+				RAISERROR(59999, 16, 1, @EMAIL_ALREADY_EXISTS$exception)
+
+			SELECT @USERS_BY_USERNAME = count_big(*)
+			FROM MOVIE_USER.USERS
+			WHERE USERS.USERNAME = @P_USERNAME
+
+			IF @USERS_BY_USERNAME != 0
+				RAISERROR(59999, 16, 1, @USERNAME_ALREADY_EXISTS$exception)
+
+			IF @P_ROLE NOT IN ( 'ADMIN', 'USER' )
+				RAISERROR(59999, 16, 1, @WRONG_ROLE_EXCEPTION$exception)
+
+			EXECUTE MOVIE_USER.USERPACKAGE$ADDUSER @P_EMAIL = @P_EMAIL, @P_USERNAME = @P_USERNAME, @P_PASSWORD_HASH = @P_PASSWORD_HASH, @P_ROLE = @P_ROLE
+
+			/* 
+			*   SSMA error messages:
+			*   O2SS0560: Identifier dbms_output.put_line cannot be converted because it was not resolved.
+			*   This may happen because system package that defines the identifier was excluded from loading in Project Settings.
+
+			EXECUTE DBMS_OUTPUT.PUT_LINE
+			*/
+
+
+
+		END TRY
+
+		BEGIN CATCH
+
+			DECLARE
+				@errornumber int
+
+			SET @errornumber = ERROR_NUMBER()
+
+			DECLARE
+				@errormessage nvarchar(4000)
+
+			SET @errormessage = ERROR_MESSAGE()
+
+			DECLARE
+				@exceptionidentifier nvarchar(4000)
+
+			SELECT @exceptionidentifier = ssma_oracle.db_error_get_oracle_exception_id(@errormessage, @errornumber)
+
+			IF (@exceptionidentifier LIKE @EMAIL_ALREADY_EXISTS$exception)
+				BEGIN
+
+					DECLARE
+						@db_raise_application_error_message nvarchar(4000)
+
+					SET @db_raise_application_error_message = N'ORA' + CAST(-20111 AS nvarchar) + N': ' + N'Email already exists'
+
+					RAISERROR(59998, 16, 1, @db_raise_application_error_message)
+
+				END
+			ELSE 
+				IF (@exceptionidentifier LIKE @USERNAME_ALREADY_EXISTS$exception)
+					BEGIN
+
+						DECLARE
+							@db_raise_application_error_message$2 nvarchar(4000)
+
+						SET @db_raise_application_error_message$2 = N'ORA' + CAST(-20112 AS nvarchar) + N': ' + N'Username already exists'
+
+						RAISERROR(59998, 16, 1, @db_raise_application_error_message$2)
+
+					END
+				ELSE 
+					IF (@exceptionidentifier LIKE @WRONG_ROLE_EXCEPTION$exception)
+						BEGIN
+
+							DECLARE
+								@db_raise_application_error_message$3 nvarchar(4000)
+
+							SET @db_raise_application_error_message$3 = N'ORA' + CAST(-20113 AS nvarchar) + N': ' + N'Wrong role name'
+
+							RAISERROR(59998, 16, 1, @db_raise_application_error_message$3)
+
+						END
+					ELSE 
+						BEGIN
+
+							DECLARE
+								@db_raise_application_error_message$4 nvarchar(4000)
+
+							SET @db_raise_application_error_message$4 = N'ORA' + CAST(-20114 AS nvarchar) + N': ' + N'An error occurred'
+
+							RAISERROR(59998, 16, 1, @db_raise_application_error_message$4)
+
+						END
+
+		END CATCH
+
+	END
+GO</pre></div></div><script>
+var sourceLanguage = 'sql';
+var sourceEditorSelections = [{start:44, end:75, guid:'01809a89-d452-4f6f-a981-c42d15947164', reflection:['3936857e-904e-4b68-8d99-7c195048ad96'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:77, end:114, guid:'a1cb1cba-49c7-4b33-a715-b8d8443853dc', reflection:['4cb04366-bbb7-4ab7-a868-1027737db1e2'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:116, end:163, guid:'99443efb-6db2-450f-8197-f5fc8b6fb60d', reflection:['dfbad759-9102-40e3-9cf6-b9269503eb85'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:165, end:194, guid:'09e3379c-d990-4140-81a3-76347cc8d5c0', reflection:['1c26f076-eed4-490d-81b9-6bf24bf8fbc0'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:204, end:229, guid:'8a56debb-a52e-4906-95ab-7438d0a4e910', reflection:['a3c0d1e3-d83e-4990-8660-b29da15c2f76'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:229, end:257, guid:'d4e201b6-bb63-4ee7-a62a-c7d53ebc4e13', reflection:['90f2e369-f445-46ac-a253-9df18fd0179a'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:257, end:291, guid:'c9c16998-4c5c-4bc2-ac11-70c345d914da', reflection:['ea0cea05-4abf-4a29-9d4d-e18aa9700f82','2cb8c2c6-8e42-4c72-a632-9677646e4503'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:291, end:328, guid:'50543704-e434-43c9-ac1e-fa6b0ab78943', reflection:['7bdb0feb-0816-4004-bb90-d1251738e659','0088aa22-ae74-425d-8b03-f2b05d615792'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:328, end:362, guid:'4f620e53-2b95-494c-ad88-214b307a4f25', reflection:['1f262771-069a-4bd4-ac55-7eba61561b67','36352f66-5b47-4ae5-beac-3835a28ef2e6'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:371, end:449, guid:'bd161af7-d35f-4f48-8f2a-07bda188f634', reflection:['246972f7-5ed1-43a4-aba4-a48757de16fb'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:481, end:512, guid:'076d184f-0529-468f-8cb5-08cea259b298', reflection:['0793b637-b2dc-4a75-ba38-7e0caf48c37e'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:450, end:522, guid:'9e667229-356f-4b95-827f-4cba1ba6d168', reflection:['cd76f4e7-5826-4201-8501-3ec6471bda51'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:523, end:610, guid:'5c2c38bc-c402-4bed-9c4a-9377a5f1858e', reflection:['cb0e99cb-1576-492a-a6cb-659cdf9f8874'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:645, end:679, guid:'7b54c0ce-bf57-4801-94ed-9eec373750f6', reflection:['5907f916-f32b-4f84-9108-69d8ac6d085e'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:611, end:689, guid:'fb0d6abf-ea69-4c04-9cca-e325a37a4202', reflection:['107d97e5-7ba7-4cff-a963-6e5a4f711eed'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:735, end:766, guid:'6fd620fd-337c-4fb3-a99c-e4cc5cb0a0ef', reflection:['72de0b18-73f0-467d-927d-05383f56468d'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:690, end:776, guid:'0f5a6968-495a-4f94-9920-55f7da1bca12', reflection:['d231e7ca-7e3c-48b5-9684-061fa58c1386'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:777, end:846, guid:'d8cf3e70-ecef-4e61-807d-df65245ddb80', reflection:['69daad17-2fb5-4cf3-8f35-85f4691519f4'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:847, end:897, guid:'6fe2960e-048c-4841-82f7-0eb93ca31671', reflection:['5c5a6b99-eaaa-44ee-b946-572e2f2c9d88'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:946, end:1007, guid:'1cf94219-9d42-44cd-b8a4-c51b2955d2ad', reflection:['f78e6dc5-6ab8-4bbd-8dc2-f9c1c913462f'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:1045, end:1109, guid:'aec69535-2db1-4a54-8d7e-a13a8b3f3466', reflection:['cd722f2a-1a42-4112-9807-a0f8fe6e930e'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:1144, end:1200, guid:'1e09f303-4729-4d55-abf4-1588a25c658c', reflection:['cfa00a2f-6e65-4057-a74d-d882017efd5d'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:1221, end:1279, guid:'6aa6295f-f8cc-44f7-957f-63d10e3bd91d', reflection:['1a496f35-d22a-4e68-b63d-e594ea572e58'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:898, end:1279, guid:'75cdba50-3725-48d4-869c-98aa2bbcbc39', reflection:['43d0cbea-c5f1-4c37-a9bb-17530df6a3d0'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:0, end:1286, guid:'606892a4-da53-4854-a145-6e76b5fff808', reflection:['d1144750-48eb-4edb-a0ee-df8e276138dd'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]}];
+var targetLanguage = 'sql';
+var targetEditorSelections = [{start:51, end:75, guid:'3936857e-904e-4b68-8d99-7c195048ad96', reflection:['01809a89-d452-4f6f-a981-c42d15947164'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:76, end:103, guid:'4cb04366-bbb7-4ab7-a868-1027737db1e2', reflection:['a1cb1cba-49c7-4b33-a715-b8d8443853dc'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:104, end:136, guid:'dfbad759-9102-40e3-9cf6-b9269503eb85', reflection:['99443efb-6db2-450f-8197-f5fc8b6fb60d'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:137, end:160, guid:'1c26f076-eed4-490d-81b9-6bf24bf8fbc0', reflection:['09e3379c-d990-4140-81a3-76347cc8d5c0'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:182, end:324, guid:'a3c0d1e3-d83e-4990-8660-b29da15c2f76', reflection:['8a56debb-a52e-4906-95ab-7438d0a4e910'], convmessInfoIds:[], convmessWarningIds:['O2SS0356'], convmessErrorIds:[]},{start:326, end:471, guid:'90f2e369-f445-46ac-a253-9df18fd0179a', reflection:['d4e201b6-bb63-4ee7-a62a-c7d53ebc4e13'], convmessInfoIds:[], convmessWarningIds:['O2SS0356'], convmessErrorIds:[]},{start:473, end:523, guid:'ea0cea05-4abf-4a29-9d4d-e18aa9700f82', reflection:['c9c16998-4c5c-4bc2-ac11-70c345d914da'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:525, end:578, guid:'7bdb0feb-0816-4004-bb90-d1251738e659', reflection:['50543704-e434-43c9-ac1e-fa6b0ab78943'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:580, end:630, guid:'1f262771-069a-4bd4-ac55-7eba61561b67', reflection:['4f620e53-2b95-494c-ad88-214b307a4f25'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:718, end:822, guid:'2cb8c2c6-8e42-4c72-a632-9677646e4503', reflection:['c9c16998-4c5c-4bc2-ac11-70c345d914da'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:823, end:933, guid:'0088aa22-ae74-425d-8b03-f2b05d615792', reflection:['50543704-e434-43c9-ac1e-fa6b0ab78943'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:934, end:1038, guid:'36352f66-5b47-4ae5-beac-3835a28ef2e6', reflection:['4f620e53-2b95-494c-ad88-214b307a4f25'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:1039, end:1137, guid:'246972f7-5ed1-43a4-aba4-a48757de16fb', reflection:['bd161af7-d35f-4f48-8f2a-07bda188f634'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:1165, end:1226, guid:'0793b637-b2dc-4a75-ba38-7e0caf48c37e', reflection:['076d184f-0529-468f-8cb5-08cea259b298'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:1138, end:1226, guid:'cd76f4e7-5826-4201-8501-3ec6471bda51', reflection:['9e667229-356f-4b95-827f-4cba1ba6d168'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:1227, end:1334, guid:'cb0e99cb-1576-492a-a6cb-659cdf9f8874', reflection:['5c2c38bc-c402-4bed-9c4a-9377a5f1858e'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:1365, end:1429, guid:'5907f916-f32b-4f84-9108-69d8ac6d085e', reflection:['7b54c0ce-bf57-4801-94ed-9eec373750f6'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:1335, end:1429, guid:'107d97e5-7ba7-4cff-a963-6e5a4f711eed', reflection:['fb0d6abf-ea69-4c04-9cca-e325a37a4202'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:1471, end:1532, guid:'72de0b18-73f0-467d-927d-05383f56468d', reflection:['6fd620fd-337c-4fb3-a99c-e4cc5cb0a0ef'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:1430, end:1532, guid:'d231e7ca-7e3c-48b5-9684-061fa58c1386', reflection:['0f5a6968-495a-4f94-9920-55f7da1bca12'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:1533, end:1678, guid:'69daad17-2fb5-4cf3-8f35-85f4691519f4', reflection:['d8cf3e70-ecef-4e61-807d-df65245ddb80'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:1679, end:1974, guid:'5c5a6b99-eaaa-44ee-b946-572e2f2c9d88', reflection:['6fe2960e-048c-4841-82f7-0eb93ca31671'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:['O2SS0560']},{start:2394, end:2464, guid:'f78e6dc5-6ab8-4bbd-8dc2-f9c1c913462f', reflection:['1cf94219-9d42-44cd-b8a4-c51b2955d2ad'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:2747, end:2821, guid:'cd722f2a-1a42-4112-9807-a0f8fe6e930e', reflection:['aec69535-2db1-4a54-8d7e-a13a8b3f3466'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:3114, end:3190, guid:'cfa00a2f-6e65-4057-a74d-d882017efd5d', reflection:['1e09f303-4729-4d55-abf4-1588a25c658c'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:3411, end:3487, guid:'1a496f35-d22a-4e68-b63d-e594ea572e58', reflection:['6aa6295f-f8cc-44f7-957f-63d10e3bd91d'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:1986, end:3699, guid:'43d0cbea-c5f1-4c37-a9bb-17530df6a3d0', reflection:['75cdba50-3725-48d4-869c-98aa2bbcbc39'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:0, end:3705, guid:'d1144750-48eb-4edb-a0ee-df8e276138dd', reflection:['606892a4-da53-4854-a145-6e76b5fff808'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]}];
+</script><script src='../js/code.js'></script></body></html>

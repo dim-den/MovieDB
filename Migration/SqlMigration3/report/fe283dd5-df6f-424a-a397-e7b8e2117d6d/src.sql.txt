@@ -1,0 +1,7 @@
+CREATE OR REPLACE procedure AddGenre (
+p_NAME in Genre.NAME%type
+) is
+begin
+    insert into Genre(NAME) values 
+    (p_NAME);
+end;

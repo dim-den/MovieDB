@@ -1,5 +1,17 @@
 create or replace package body FilmCastPackage as
 
+procedure GetAllFilmCasts
+as
+  cursor cur is select * from film_cast;
+  rec cur%rowtype;
+begin
+    dbms_output.put_line('ROLE_NAME|ROLE_TYPE|ACTOR_ID|FILM_ID');
+    for rec in cur
+    loop
+          dbms_output.put_line(rec.ROLE_NAME||'|'||rec.ROLE_TYPE||'|'||rec.ACTOR_ID||'|'||rec.FILM_ID );
+    end loop;
+end;
+
 function GetFilmCastsCount return number
 is
     count_film_casts number;

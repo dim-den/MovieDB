@@ -1,0 +1,22 @@
+CREATE OR REPLACE procedure Login(p_EMAIL USERS.EMAIL%type, p_PASSWORD_HASH USERS.PASSWORD_HASH%type)
+is
+user_rec USERS%rowtype;
+wrong_password exception;
+begin
+    select * into user_rec from Users where email = p_EMAIL;
+
+    if user_rec.PASSWORD_HASH != p_PASSWORD_HASH then
+        raise wrong_password;   
+    end if;
+
+    dbms_output.put_line('Succesful login');
+
+     exception
+     when no_data_found
+        then raise_application_error(-20101,'Wrong email');
+     when wrong_password
+        then raise_application_error(-20102,'Wrong password');
+     when others     
+        then raise_application_error(-20103,'An error occurred');
+
+end;

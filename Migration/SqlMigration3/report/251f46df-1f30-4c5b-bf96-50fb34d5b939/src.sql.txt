@@ -1,0 +1,7 @@
+CREATE OR REPLACE function GetActorsCount return number
+is
+    count_actors number;
+begin
+    select count(*) into count_actors from ACTOR;
+    return count_actors;
+end;

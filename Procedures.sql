@@ -1,5 +1,7 @@
 create or replace package FilmPackage as
 
+procedure GetAllFilms;
+
 procedure SearchFilmByContainingTitleIgnoreCase(p_Title FILM.Title%type);
 
 function GetFilmsCount return number;
@@ -32,6 +34,8 @@ p_ID in FILM.ID%type
 end FilmPackage;
 
 create or replace package ActorPackage as
+
+procedure GetAllActors;
 
 procedure SearchActorByContainingSurnameIgnoreCase(p_SURNAME ACTOR.SURNAME%type);
 
@@ -70,6 +74,8 @@ p_USERNAME in USERS.USERNAME%type,
 p_PASSWORD_HASH in USERS.PASSWORD_HASH%type,
 p_ROLE in USERS.ROLE%type);
 
+procedure GetAllUsers;
+
 function GetUsersCount return number;
 
 procedure AddUser (
@@ -95,6 +101,8 @@ end UserPackage;
 
 create or replace package GenrePackage as
 
+procedure GetAllGenres;
+
 function GetGenresCount return number;
 
 procedure AddGenre (
@@ -114,7 +122,11 @@ end GenrePackage;
 
 create or replace package FilmReviewPackage as
 
+procedure GetAllFilmReviews;
+
 function GetFilmReviewsCount return number;
+
+function GetFilmAvgScore(p_FILM_ID FILM_REVIEW.FILM_ID%type) return float;
 
 procedure AddFilmReview (
 p_REVIEW  FILM_REVIEW.REVIEW%type,
@@ -141,6 +153,8 @@ end FilmReviewPackage;
 
 create or replace package FilmCastPackage as
 
+procedure GetAllFilmCasts;
+
 function GetFilmCastsCount return number;
 
 procedure AddFilmCast (
@@ -165,6 +179,8 @@ p_ID in FILM_CAST.ID%type
 end FilmCastPackage;
 
 create or replace package FilmGenrePackage as
+
+procedure GetAllFilmGenres;
 
 function GetFilmGenresCount return number;
 

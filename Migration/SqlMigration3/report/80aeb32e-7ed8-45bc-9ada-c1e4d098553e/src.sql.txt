@@ -1,0 +1,7 @@
+CREATE OR REPLACE function GetGenresCount return number
+is
+    count_genres number;
+begin
+    select count(*) into count_genres from Genre;
+    return count_genres;
+end;

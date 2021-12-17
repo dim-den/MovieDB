@@ -1,0 +1,69 @@
+<html>
+<head>
+<meta http-equiv='Content-Type' content='text/html; charset=UTF-8'>
+<meta http-equiv='X-UA-Compatible' content='IE=edge' />
+<link rel=stylesheet data-name='vs/editor/editor.main' href='../monaco/editor.main.css' type='text/css'>
+<link rel='stylesheet' type='text/css' href='../css/style.css'></link>
+<script type='text/javascript' src='../js/functions.js'></script>
+<script async='async' type='text/javascript' src='../monaco/sql.js'></script>
+<script src='../monaco/loader.js'></script>
+<script src='../monaco/editor.main.nls.js'></script>
+<script src='../monaco/editor.main.js'></script>
+</head>
+<body class='sql-body' id='scrollable-body'>
+<div id='left-side' class='left-side'><div class='panel'>
+<span class='panel-title source'>&nbsp;Source</span>
+<img tabindex='0' aria-label='Previous problem' role='button' class='nav-button nav-button-disabled' id='source_previous_problem' src='../img/previous_problem.gif' onclick='handleProblemButtonClick(-1, true)' title='Previous problem' />
+<img tabindex='0' aria-label='Next problem' role='button' class='nav-button nav-button-disabled' id='source_next_problem' src='../img/next_problem.gif' onclick='handleProblemButtonClick(1, true)' title='Next problem' />
+<img tabindex='0' aria-label='Previous bookmark' role='button' class='nav-button nav-button-disabled' id='source_previous_bookmark' src='../img/previous_bookmark.gif' onclick='handleBookmarkButtonClick(-1, true)' title='Previous bookmark' />
+<img tabindex='0' aria-label='Next bookmark' role='button' class='nav-button nav-button-disabled' id='source_next_bookmark' src='../img/next_bookmark.gif' onclick='handleBookmarkButtonClick(1, true)' title='Next bookmark' />
+<img tabindex='0' aria-label='Clear bookmarks' role='button' class='nav-button nav-button-disabled' id='source_clear_bookmarks' src='../img/clear_bookmarks.gif' onclick='handleBookmarkButtonClick(0, true)' title='Clear bookmarks' />
+<a class='raw-source-link' target='_blank' aria-label='Raw source' href='./src.sql.txt');'>Raw source</a>
+</div>
+<div class='editor-container'>
+<div id='monaco-left-side'></div><pre id='monaco-left-side-sql'>
+CREATE OR REPLACE 
+	PROCEDURE UpdateFilmGenre 
+		(
+			p_ID IN FILM_GENRES.ID%TYPE, 
+			p_FILM_ID IN FILM_GENRES.FILM_ID%TYPE, 
+			p_GENRE_ID IN FILM_GENRES.GENRE_ID%TYPE
+		)
+	IS
+	BEGIN 
+		UPDATE FILM_GENRES
+			SET FILM_ID = p_FILM_ID, GENRE_ID = p_GENRE_ID
+		WHERE ID = p_ID;
+	END;
+</pre></div></div><div id='resize-bar' class='resize-bar'></div><div id='right-side' class='right-side'><div class='panel'>
+<span class='panel-title target'>&nbsp;Target</span>
+<img tabindex='0' aria-label='Previous problem' role='button' class='nav-button nav-button-disabled' id='target_previous_problem' src='../img/previous_problem.gif' onclick='handleProblemButtonClick(-1, false)' title='Previous problem' />
+<img tabindex='0' aria-label='Next problem' role='button' class='nav-button nav-button-disabled' id='target_next_problem' src='../img/next_problem.gif' onclick='handleProblemButtonClick(1, false)' title='Next problem' />
+<img tabindex='0' aria-label='Previous bookmark' role='button' class='nav-button nav-button-disabled' id='target_previous_bookmark' src='../img/previous_bookmark.gif' onclick='handleBookmarkButtonClick(-1, false)' title='Previous bookmark' />
+<img tabindex='0' aria-label='Next bookmark' role='button' class='nav-button nav-button-disabled' id='target_next_bookmark' src='../img/next_bookmark.gif' onclick='handleBookmarkButtonClick(1, false)' title='Next bookmark' />
+<img tabindex='0' aria-label='Clear bookmarks' role='button' class='nav-button nav-button-disabled' id='target_clear_bookmarks' src='../img/clear_bookmarks.gif' onclick='handleBookmarkButtonClick(0, false)' title='Clear bookmarks' />
+</div>
+<div class='editor-container'>
+<div id='monaco-right-side'></div><pre id='monaco-right-side-sql'>
+CREATE PROCEDURE MOVIE_USER.FILMGENREPACKAGE$UPDATEFILMGENRE  
+	@P_ID numeric(19, 0),
+	@P_FILM_ID numeric(19, 0),
+	@P_GENRE_ID numeric(19, 0)
+AS 
+	BEGIN
+
+		EXECUTE ssma_oracle.db_check_init_package 'MOVIE_USER', 'FILMGENREPACKAGE'
+
+		UPDATE MOVIE_USER.FILM_GENRES
+		   SET 
+		   	FILM_ID = @P_FILM_ID, 
+		   	GENRE_ID = @P_GENRE_ID
+		  WHERE FILM_GENRES.ID = @P_ID
+
+	END
+GO</pre></div></div><script>
+var sourceLanguage = 'sql';
+var sourceEditorSelections = [{start:51, end:82, guid:'a3977341-6a44-4821-9c09-befd08dc178a', reflection:['ef140b16-4be1-4b7c-8d01-ad2ab030dc8c'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:84, end:125, guid:'38d734ac-2c38-42a6-bc7d-6e18e26c2ffe', reflection:['ded0446e-7c4a-4b57-9fb9-a3438b4a580d'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:127, end:170, guid:'cb8a2817-7907-49b5-9f16-bd88cce8afc3', reflection:['c5e15c8b-0ed9-4c0d-86f3-92f27850b439'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:186, end:276, guid:'85bc43f5-d35d-4d69-b467-0d1c0dafa348', reflection:['0a0ec88d-86ed-408e-80fa-6a8308bf7016'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:0, end:282, guid:'7b7905c0-fd10-46d7-86dc-8f0f4c040fc1', reflection:['80b27b71-dde3-4b2c-b7e4-77127fba9653'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]}];
+var targetLanguage = 'sql';
+var targetEditorSelections = [{start:63, end:85, guid:'ef140b16-4be1-4b7c-8d01-ad2ab030dc8c', reflection:['a3977341-6a44-4821-9c09-befd08dc178a'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:86, end:113, guid:'ded0446e-7c4a-4b57-9fb9-a3438b4a580d', reflection:['38d734ac-2c38-42a6-bc7d-6e18e26c2ffe'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:114, end:142, guid:'c5e15c8b-0ed9-4c0d-86f3-92f27850b439', reflection:['cb8a2817-7907-49b5-9f16-bd88cce8afc3'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:232, end:365, guid:'0a0ec88d-86ed-408e-80fa-6a8308bf7016', reflection:['85bc43f5-d35d-4d69-b467-0d1c0dafa348'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:0, end:371, guid:'80b27b71-dde3-4b2c-b7e4-77127fba9653', reflection:['7b7905c0-fd10-46d7-86dc-8f0f4c040fc1'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]}];
+</script><script src='../js/code.js'></script></body></html>

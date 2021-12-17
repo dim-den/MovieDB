@@ -1,0 +1,11 @@
+CREATE OR REPLACE procedure UpdateFilmGenre (
+p_ID in FILM_GENRES.ID%type,
+p_FILM_ID in FILM_GENRES.FILM_ID%type,
+p_GENRE_ID in FILM_GENRES.GENRE_ID%type
+) is
+begin
+    update FILM_GENRES set
+    FILM_ID = p_FILM_ID,
+    GENRE_ID = p_GENRE_ID
+    where ID = p_ID;
+end;

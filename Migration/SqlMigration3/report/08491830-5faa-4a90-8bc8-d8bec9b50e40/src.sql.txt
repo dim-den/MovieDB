@@ -1,0 +1,34 @@
+CREATE OR REPLACE procedure ExportFilmReviews
+is
+    l_file UTL_FILE.file_type; --для дескриптора
+    l_file_name VARCHAR2 (60) := 'FilmReviews.xml'; --имя файла
+
+    cursor all_entities is select * from FILM_REVIEW;
+    one_entity xmltype; --одна запись в xml
+    sup FILM_REVIEW%rowtype; --для курсора
+    sup_string varchar2(1024); --для записи в файл
+
+    begin
+        l_file := UTL_FILE.fopen ('EXPORT_DIR', l_file_name, 'w');
+        UTL_FILE.put_line (l_file, '<?xml version= "1.0" ?>');
+        UTL_FILE.put_line (l_file, '<FilmReviews>');
+        open all_entities;
+        fetch all_entities into sup;
+        while all_entities%found loop
+            select 
+            XMLElement("FilmReview",
+              XMLElement("id", sup.ID),
+              XMLElement("review", sup.review),
+              XMLElement("published", sup.published),
+              XMLElement("score", sup.score),
+              XMLElement("film_id", sup.film_id),
+              XMLElement("user_id", sup.user_id))
+            into one_entity from dual;
+            sup_string := one_entity.getStringVal();
+            UTL_FILE.put_line (l_file, sup_string);
+fetch all_entities into sup;
+end loop;
+close all_entities;
+UTL_FILE.put_line (l_file, '</FilmReviews>');
+UTL_FILE.fclose (l_file);
+end ExportFilmReviews;

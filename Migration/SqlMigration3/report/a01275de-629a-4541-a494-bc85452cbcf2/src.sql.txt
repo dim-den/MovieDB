@@ -1,0 +1,7 @@
+CREATE OR REPLACE function GetFilmsCount return number
+is
+    count_films number;
+begin
+    select count(*) into count_films from FILM;
+    return count_films;
+end;

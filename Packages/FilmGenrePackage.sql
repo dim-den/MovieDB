@@ -1,5 +1,17 @@
 create or replace package body FilmGenrePackage as
 
+procedure GetAllFilmGenres
+as
+  cursor cur is select * from film_genres;
+  rec cur%rowtype;
+begin
+    dbms_output.put_line('FILM_ID|GENRE_ID');
+    for rec in cur
+    loop
+          dbms_output.put_line(rec.FILM_ID||'|'||rec.GENRE_ID);
+    end loop;
+end;
+
 function GetFilmGenresCount return number
 is
     count_film_genres number;

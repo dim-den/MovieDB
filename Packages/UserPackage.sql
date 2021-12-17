@@ -66,6 +66,18 @@ begin
   
 end;
 
+    procedure GetAllUsers
+    as
+      cursor cur is select * from users;
+      rec cur%rowtype;
+    begin
+        dbms_output.put_line('EMAIL|USERNAME|PASSWORD_HASH|ROLE');
+        for rec in cur
+        loop
+              dbms_output.put_line(rec.EMAIL||'|'||rec.USERNAME||'|'||rec.PASSWORD_HASH||'|'||rec.ROLE );
+        end loop;
+    end;
+
 function GetUsersCount return number
 is
     count_users number;

@@ -1,0 +1,7 @@
+CREATE OR REPLACE procedure DeleteUser (
+p_ID in USERS.ID%type
+) is
+begin
+    delete from USERS
+    where ID = p_ID;
+end;

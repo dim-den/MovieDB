@@ -1,0 +1,7 @@
+CREATE OR REPLACE function GetUsersCount return number
+is
+    count_users number;
+begin
+    select count(*) into count_users from USERS;
+    return count_users;
+end;

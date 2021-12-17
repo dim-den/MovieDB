@@ -1,5 +1,17 @@
 create or replace package body GenrePackage as
 
+procedure GetAllGenres
+as
+  cursor cur is select * from genre;
+  rec cur%rowtype;
+begin
+    dbms_output.put_line('NAME');
+    for rec in cur
+    loop
+          dbms_output.put_line(rec.NAME );
+    end loop;
+end;
+
 function GetGenresCount return number
 is
     count_genres number;

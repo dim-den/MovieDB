@@ -1,0 +1,83 @@
+<html>
+<head>
+<meta http-equiv='Content-Type' content='text/html; charset=UTF-8'>
+<meta http-equiv='X-UA-Compatible' content='IE=edge' />
+<link rel=stylesheet data-name='vs/editor/editor.main' href='../monaco/editor.main.css' type='text/css'>
+<link rel='stylesheet' type='text/css' href='../css/style.css'></link>
+<script type='text/javascript' src='../js/functions.js'></script>
+<script async='async' type='text/javascript' src='../monaco/sql.js'></script>
+<script src='../monaco/loader.js'></script>
+<script src='../monaco/editor.main.nls.js'></script>
+<script src='../monaco/editor.main.js'></script>
+</head>
+<body class='sql-body' id='scrollable-body'>
+<div id='left-side' class='left-side'><div class='panel'>
+<span class='panel-title source'>&nbsp;Source</span>
+<img tabindex='0' aria-label='Previous problem' role='button' class='nav-button nav-button-disabled' id='source_previous_problem' src='../img/previous_problem.gif' onclick='handleProblemButtonClick(-1, true)' title='Previous problem' />
+<img tabindex='0' aria-label='Next problem' role='button' class='nav-button nav-button-disabled' id='source_next_problem' src='../img/next_problem.gif' onclick='handleProblemButtonClick(1, true)' title='Next problem' />
+<img tabindex='0' aria-label='Previous bookmark' role='button' class='nav-button nav-button-disabled' id='source_previous_bookmark' src='../img/previous_bookmark.gif' onclick='handleBookmarkButtonClick(-1, true)' title='Previous bookmark' />
+<img tabindex='0' aria-label='Next bookmark' role='button' class='nav-button nav-button-disabled' id='source_next_bookmark' src='../img/next_bookmark.gif' onclick='handleBookmarkButtonClick(1, true)' title='Next bookmark' />
+<img tabindex='0' aria-label='Clear bookmarks' role='button' class='nav-button nav-button-disabled' id='source_clear_bookmarks' src='../img/clear_bookmarks.gif' onclick='handleBookmarkButtonClick(0, true)' title='Clear bookmarks' />
+<a class='raw-source-link' target='_blank' aria-label='Raw source' href='./src.sql.txt');'>Raw source</a>
+</div>
+<div class='editor-container'>
+<div id='monaco-left-side'></div><pre id='monaco-left-side-sql'>
+CREATE OR REPLACE 
+	FUNCTION GetFilmCastsCount
+		 RETURN number
+	IS
+	
+		count_film_casts number;
+	BEGIN 
+
+		SELECT count(*)
+		INTO count_film_casts
+		FROM FILM_CAST;
+
+		RETURN count_film_casts;
+
+	END;
+</pre></div></div><div id='resize-bar' class='resize-bar'></div><div id='right-side' class='right-side'><div class='panel'>
+<span class='panel-title target'>&nbsp;Target</span>
+<img tabindex='0' aria-label='Previous problem' role='button' class='nav-button nav-button-disabled' id='target_previous_problem' src='../img/previous_problem.gif' onclick='handleProblemButtonClick(-1, false)' title='Previous problem' />
+<img tabindex='0' aria-label='Next problem' role='button' class='nav-button nav-button-disabled' id='target_next_problem' src='../img/next_problem.gif' onclick='handleProblemButtonClick(1, false)' title='Next problem' />
+<img tabindex='0' aria-label='Previous bookmark' role='button' class='nav-button nav-button-disabled' id='target_previous_bookmark' src='../img/previous_bookmark.gif' onclick='handleBookmarkButtonClick(-1, false)' title='Previous bookmark' />
+<img tabindex='0' aria-label='Next bookmark' role='button' class='nav-button nav-button-disabled' id='target_next_bookmark' src='../img/next_bookmark.gif' onclick='handleBookmarkButtonClick(1, false)' title='Next bookmark' />
+<img tabindex='0' aria-label='Clear bookmarks' role='button' class='nav-button nav-button-disabled' id='target_clear_bookmarks' src='../img/clear_bookmarks.gif' onclick='handleBookmarkButtonClick(0, false)' title='Clear bookmarks' />
+</div>
+<div class='editor-container'>
+<div id='monaco-right-side'></div><pre id='monaco-right-side-sql'>
+CREATE FUNCTION MOVIE_USER.FILMCASTPACKAGE$GETFILMCASTSCOUNT 
+( 
+)
+/*
+*   SSMA warning messages:
+*   O2SS0356: Conversion from NUMBER datatype can cause data loss.
+*/
+
+RETURNS float(53)
+AS 
+	BEGIN
+
+		EXECUTE ssma_oracle.db_fn_check_init_package 'MOVIE_USER', 'FILMCASTPACKAGE'
+
+		DECLARE
+			/*
+			*   SSMA warning messages:
+			*   O2SS0356: Conversion from NUMBER datatype can cause data loss.
+			*/
+
+			@COUNT_FILM_CASTS float(53)
+
+		SELECT @COUNT_FILM_CASTS = count_big(*)
+		FROM MOVIE_USER.FILM_CAST
+
+		RETURN @COUNT_FILM_CASTS
+
+	END
+GO</pre></div></div><script>
+var sourceLanguage = 'sql';
+var sourceEditorSelections = [{start:47, end:64, guid:'8aec9412-7b66-4641-ab79-fc8245c583bf', reflection:['0694223f-0407-4298-aec9-4f1462eeb3a4'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:70, end:97, guid:'5cb95090-13e1-47fd-a7a2-7a2a1bc6624a', reflection:['be869447-21a8-494c-96fc-48f18e099ff6'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:106, end:166, guid:'cebc7db0-5a68-4de4-a7a8-69f1f1c05667', reflection:['7b251ac3-40be-4265-ba64-1e468c8a32b2'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:167, end:194, guid:'f6271ba5-5954-48ce-86ad-770883a3a074', reflection:['6f2f53fa-0a44-47aa-99d8-533dacfd2365'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:0, end:201, guid:'72e30509-19e7-41a2-be9b-1c641f1aedd7', reflection:['108583d5-826c-43fb-9674-acb3b7bc428d'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]}];
+var targetLanguage = 'sql';
+var targetEditorSelections = [{start:67, end:186, guid:'0694223f-0407-4298-aec9-4f1462eeb3a4', reflection:['8aec9412-7b66-4641-ab79-fc8245c583bf'], convmessInfoIds:[], convmessWarningIds:['O2SS0356'], convmessErrorIds:[]},{start:288, end:432, guid:'be869447-21a8-494c-96fc-48f18e099ff6', reflection:['5cb95090-13e1-47fd-a7a2-7a2a1bc6624a'], convmessInfoIds:[], convmessWarningIds:['O2SS0356'], convmessErrorIds:[]},{start:433, end:503, guid:'7b251ac3-40be-4265-ba64-1e468c8a32b2', reflection:['cebc7db0-5a68-4de4-a7a8-69f1f1c05667'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:504, end:531, guid:'6f2f53fa-0a44-47aa-99d8-533dacfd2365', reflection:['f6271ba5-5954-48ce-86ad-770883a3a074'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]},{start:0, end:537, guid:'108583d5-826c-43fb-9674-acb3b7bc428d', reflection:['72e30509-19e7-41a2-be9b-1c641f1aedd7'], convmessInfoIds:[], convmessWarningIds:[], convmessErrorIds:[]}];
+</script><script src='../js/code.js'></script></body></html>

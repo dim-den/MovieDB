@@ -1,0 +1,62 @@
+CREATE OR REPLACE package GenrePackage as
+
+function GetGenresCount return number;
+
+procedure AddGenre (
+p_NAME in Genre.NAME%type
+);
+
+procedure UpdateGenre (
+p_ID in Genre.ID%type,
+p_NAME in Genre.NAME%type
+);
+
+procedure DeleteGenre(
+p_ID in Genre.ID%type
+);
+
+end GenrePackage;
+
+/
+
+CREATE OR REPLACE package body GenrePackage as
+
+function GetGenresCount return number
+is
+    count_genres number;
+begin
+    select count(*) into count_genres from Genre;
+    return count_genres;
+end;
+
+
+-- Insert
+procedure AddGenre (
+p_NAME in Genre.NAME%type
+) is
+begin
+    insert into Genre(NAME) values 
+    (p_NAME);
+end;
+
+-- Update
+procedure UpdateGenre (
+p_ID in Genre.ID%type,
+p_NAME in Genre.NAME%type
+) is
+begin
+    update Genre set    
+    NAME = p_NAME
+    where ID = p_ID;
+end;
+
+-- Delete
+procedure DeleteGenre (
+p_ID in Genre.ID%type
+) is
+begin
+    delete from Genre
+    where ID = p_ID;
+end;
+
+end GenrePackage;

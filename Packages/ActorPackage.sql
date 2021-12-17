@@ -1,5 +1,17 @@
 create or replace package body ActorPackage as
 
+procedure GetAllActors
+as
+  cursor cur is select * from actor;
+  rec cur%rowtype;
+begin
+    dbms_output.put_line('NAME|SURNAME|COUNTRY|BDAY');
+    for rec in cur
+    loop
+          dbms_output.put_line(rec.NAME||'|'||rec.SURNAME||'|'||rec.COUNTRY||'|'||rec.BDAY );
+    end loop;
+end;
+
 procedure SearchActorByContainingSurnameIgnoreCase(p_SURNAME ACTOR.SURNAME%type)
 is
     cursor cur is select a.name, a.surname, a.country, a.bday from actor a where upper(a.surname) like '%'||upper(p_SURNAME)||'%';

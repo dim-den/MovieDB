@@ -1,11 +1,31 @@
 create or replace package body FilmReviewPackage as
 
+procedure GetAllFilmReviews
+as
+  cursor cur is select * from film_review;
+  rec cur%rowtype;
+begin
+    dbms_output.put_line('REVIEW|SCORE|PUBLISHED|FILM_ID|USER_ID');
+    for rec in cur
+    loop
+          dbms_output.put_line(rec.REVIEW||'|'||rec.SCORE||'|'||rec.PUBLISHED||'|'||rec.FILM_ID||'|'||rec.USER_ID );
+    end loop;
+end;
+
 function GetFilmReviewsCount return number
 is
     count_film_reviews number;
 begin
     select count(*) into count_film_reviews from FILM_REVIEW;
     return count_film_reviews;
+end;
+
+function GetFilmAvgScore(p_FILM_ID FILM_REVIEW.FILM_ID%type) return float
+is
+    avg_score float;
+begin
+    select avg(score) into avg_score from FILM_REVIEW where film_id = p_FILM_ID;
+    return avg_score;
 end;
 
 

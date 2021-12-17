@@ -1,5 +1,17 @@
 create or replace package body FilmPackage as
 
+procedure GetAllFilms
+as
+  cursor cur is select * from film;
+  rec cur%rowtype;
+begin
+    dbms_output.put_line('TITLE|DESCRIPTION|DIRECTOR|COUNTRY|BUDGET|RELEASE|FEES');
+    for rec in cur
+    loop
+          dbms_output.put_line(rec.TITLE||'|'||rec.DESCRIPTION||'|'||rec.DIRECTOR||'|'||rec.COUNTRY||'|'||rec.BUDGET||'|'||rec.RELEASE||'|'||rec.FEES );
+    end loop;
+end;
+
 function GetFilmsCount return number
 is
     count_films number;
